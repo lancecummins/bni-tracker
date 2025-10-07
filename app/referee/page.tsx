@@ -324,7 +324,7 @@ export default function RefereePage() {
     const teamScores = scores.filter(s => teamMembers.some(m => m.id === s.userId));
 
     let bonusPoints = 0;
-    const categories = [];
+    const categories: string[] = [];
 
     if (teamScores.length === teamMembers.length && teamMembers.length > 0) {
       const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
