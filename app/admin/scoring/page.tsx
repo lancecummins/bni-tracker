@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, KeyboardEvent } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   useStaticActiveSession,
   useStaticUsers,
@@ -81,7 +81,7 @@ export default function ScoringPage() {
 
   // Global keyboard shortcut for save all - must be after filteredMembers is defined
   useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+    const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
       // Cmd/Ctrl + Shift + S to save all scores
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 's') {
         e.preventDefault();
