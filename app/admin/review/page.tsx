@@ -37,7 +37,7 @@ export default function AdminReviewPage() {
     }> = {};
 
     teams.forEach(team => {
-      const teamLeader = users.find(u => u.id === team.teamLeaderId);
+      const teamLeader = users.find(u => u.id === team.teamLeaderId) || null;
       const teamMembers = users.filter(u => u.teamId === team.id && (u.role === 'member' || u.role === 'team-leader') && u.isActive);
       const teamDraftScores = scores.filter(s => s.teamId === team.id && s.isDraft);
       const teamPublishedScores = scores.filter(s => s.teamId === team.id && !s.isDraft);
