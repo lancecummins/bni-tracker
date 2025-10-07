@@ -123,7 +123,7 @@ export default function SessionsPage() {
                 {/* Session Header */}
                 <div
                   className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => setExpandedSession(isExpanded ? null : session.id)}
+                  onClick={() => setExpandedSession(isExpanded ? null : session.id || null)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">

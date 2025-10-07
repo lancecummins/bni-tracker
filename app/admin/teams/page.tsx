@@ -315,7 +315,7 @@ export default function TeamsPage() {
                       <button
                         onClick={() =>
                           setShowUserAssignment(
-                            showUserAssignment === team.id ? null : team.id
+                            showUserAssignment === team.id ? null : (team.id || null)
                           )
                         }
                         className="p-2 bg-white/20 rounded hover:bg-white/30 transition-colors"

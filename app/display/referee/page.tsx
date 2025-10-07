@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
 interface DisplayData {
-  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD';
+  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD' | 'DISPLAY_TEAM_BONUS';
   user?: User;
   team?: Team;
   score?: Score;
@@ -17,6 +17,12 @@ interface DisplayData {
   scores?: Score[];
   users?: User[];
   revealedUserIds?: string[];
+  // For bonus display
+  teamId?: string;
+  teamName?: string;
+  teamColor?: string;
+  bonusTotal?: number;
+  bonusCategories?: string[];
 }
 
 export default function RefereeDisplayPage({ initialData }: { initialData?: DisplayData }) {

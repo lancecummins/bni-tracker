@@ -455,7 +455,7 @@ export default function DisplayPage() {
                       </div>
                       <div className="text-right">
                         <motion.div
-                          key={team.weeklyPoints + team.bonusPoints}
+                          key={team.weeklyPoints + (team.bonusPoints || 0)}
                           initial={{ scale: 1.5, color: '#10b981' }}
                           animate={{ scale: 1, color: '#ffffff' }}
                           transition={{ duration: 0.5 }}
@@ -463,7 +463,7 @@ export default function DisplayPage() {
                         >
                           <div className="inline-flex flex-col items-center">
                             <span className="text-5xl font-bold text-white">
-                              {team.weeklyPoints + team.bonusPoints}
+                              {team.weeklyPoints + (team.bonusPoints || 0)}
                             </span>
                             <span className="text-lg text-white/80 mt-1">points</span>
                           </div>

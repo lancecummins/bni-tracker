@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, KeyboardEvent } from 'react';
 import {
   useStaticActiveSession,
   useStaticUsers,
@@ -305,6 +305,7 @@ export default function ScoringPage() {
         teamId: user.teamId || undefined,
         metrics,
         totalPoints: calculatePoints(metrics),
+        isDraft: false,
         createdAt: new Date() as any,
         updatedAt: new Date() as any,
       };
