@@ -1,0 +1,23 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_FIREBASE_API_KEY": "@next_public_firebase_api_key",
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "@next_public_firebase_auth_domain",
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "@next_public_firebase_project_id",
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "@next_public_firebase_storage_bucket",
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "@next_public_firebase_messaging_sender_id",
+    "NEXT_PUBLIC_FIREBASE_APP_ID": "@next_public_firebase_app_id",
+    "FIREBASE_ADMIN_PROJECT_ID": "@firebase_admin_project_id",
+    "FIREBASE_ADMIN_CLIENT_EMAIL": "@firebase_admin_client_email",
+    "FIREBASE_ADMIN_PRIVATE_KEY": "@firebase_admin_private_key"
+  },
+  "functions": {
+    "app/api/**": {
+      "maxDuration": 30
+    }
+  }
+}
