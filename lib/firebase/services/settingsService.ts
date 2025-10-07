@@ -2,25 +2,11 @@ import {
   doc,
   getDoc,
   setDoc,
-  onSnapshot
+  onSnapshot,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../config';
-
-export interface PointValues {
-  attendance: number;
-  one21s: number;
-  referrals: number;
-  tyfcb: number;
-  visitors: number;
-}
-
-export interface BonusValues {
-  attendance: number;
-  one21s: number;
-  referrals: number;
-  tyfcb: number;
-  visitors: number;
-}
+import { Settings as TypesSettings, PointValues, BonusValues } from '@/lib/types';
 
 export interface SeasonSettings {
   name: string;
@@ -36,9 +22,7 @@ export interface DisplaySettings {
   leaderboardSize: number;
 }
 
-export interface Settings {
-  pointValues: PointValues;
-  bonusValues: BonusValues;
+export interface Settings extends TypesSettings {
   seasonSettings: SeasonSettings;
   displaySettings: DisplaySettings;
 }
@@ -69,7 +53,9 @@ const DEFAULT_SETTINGS: Settings = {
     playSounds: true,
     animationSpeed: 'normal',
     leaderboardSize: 10,
-  }
+  },
+  createdAt: Timestamp.now(),
+  updatedAt: Timestamp.now()
 };
 
 export const settingsService = {

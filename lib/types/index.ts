@@ -134,3 +134,11 @@ export interface TeamStandings {
   bonusCategories?: string[];
   position: number;
 }
+
+export interface Settings {
+  id?: string;
+  pointValues: PointValues;
+  bonusValues?: BonusValues;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+}

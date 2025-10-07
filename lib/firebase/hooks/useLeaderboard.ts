@@ -128,9 +128,15 @@ export function useTeamStandings(sessionId: string | null, usePublished: boolean
           weeklyWins: team.weeklyWins || 0,
           members,
           bonusPoints, // Track bonus points separately
+          position: 0, // Will be set after sorting
         };
       })
       .sort((a, b) => b.weeklyPoints - a.weeklyPoints);
+
+    // Set positions after sorting
+    teamStandings.forEach((standing, index) => {
+      standing.position = index + 1;
+    });
 
     return teamStandings;
   }, [sessionId, teams, leaderboard, loading]);

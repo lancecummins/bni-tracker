@@ -189,7 +189,7 @@ export default function TeamLeaderScoringPage() {
         return metrics && metrics[category] > 0;
       });
 
-      if (allMembersHavePoints) {
+      if (allMembersHavePoints && settings.bonusValues) {
         const bonusPoints = settings.bonusValues[category];
         earnedBonuses.push({
           category: category === 'one21s' ? '1-2-1s' :

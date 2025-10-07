@@ -42,7 +42,9 @@ export default function SettingsPage() {
   useEffect(() => {
     if (settings) {
       setPointValues(settings.pointValues);
-      setBonusValues(settings.bonusValues);
+      if (settings.bonusValues) {
+        setBonusValues(settings.bonusValues);
+      }
       setSeasonSettings(settings.seasonSettings);
       setDisplaySettings(settings.displaySettings);
     }
