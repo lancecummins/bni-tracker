@@ -224,20 +224,32 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
           return {
             userId: member.id!,
             user: member,
-            points: score?.totalPoints || 0,
-          };
+            teamId: member.teamId,
+            team: team,
+            weeklyPoints: score?.totalPoints || 0,
+            totalPoints: score?.totalPoints || 0, // Would need cumulative calculation
+            metrics: score?.metrics || {
+              attendance: 0,
+              one21s: 0,
+              referrals: 0,
+              tyfcb: 0,
+              visitors: 0,
+            },
+            position: 0,
+          } as LeaderboardEntry;
         }),
         weeklyPoints,
         bonusPoints,
         bonusCategories,
         totalPoints: 0, // Would need cumulative calculation
+        weeklyWins: 0, // Would need historical calculation
         position: 0,
       };
     });
 
     // Sort by total weekly points (including bonuses) and assign positions
     teamStandings.sort((a, b) =>
-      (b.weeklyPoints + b.bonusPoints) - (a.weeklyPoints + a.bonusPoints)
+      (b.weeklyPoints + (b.bonusPoints || 0)) - (a.weeklyPoints + (a.bonusPoints || 0))
     );
 
     teamStandings.forEach((standing, index) => {
