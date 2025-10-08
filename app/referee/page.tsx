@@ -297,8 +297,8 @@ export default function RefereePage() {
       });
 
       const weeklyPoints = teamScores.reduce((sum, score) => sum + score.totalPoints, 0);
-      const bonuses = getTeamBonuses(team.id);
-      const bonusPoints = bonuses.reduce((sum, bonus) => sum + bonus.points, 0);
+      const bonuses = team.id ? getTeamBonuses(team.id) : { total: 0, categories: [] };
+      const bonusPoints = bonuses.total;
       const totalPoints = weeklyPoints + bonusPoints;
 
       return {
