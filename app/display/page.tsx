@@ -10,7 +10,7 @@ import {
 } from '@/lib/firebase/hooks/useStaticCompositeData';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { Trophy, TrendingUp, TrendingDown, Users, Crown, Zap, Star, Minus, Gift } from 'lucide-react';
+import { Trophy, Users, Zap, Star, Gift } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import { User, Team, Score } from '@/lib/types';
 import { displayChannel } from '@/lib/utils/displayChannel';
@@ -398,8 +398,6 @@ export default function DisplayPage() {
                 <AnimatePresence mode="wait">
               {standings.map((team, index) => {
                 const teamComparison = teamComparisons.find(tc => tc.teamId === team.teamId);
-                const trend = teamComparison?.trend || 'same';
-                const change = teamComparison?.change || 0;
 
                 return (
                 <motion.div
@@ -467,21 +465,6 @@ export default function DisplayPage() {
                             </span>
                             <span className="text-sm text-white/80">points</span>
                           </div>
-                          {hasPreviousWeek && change !== 0 && (
-                            <div className={`text-xs font-medium flex items-center gap-0.5 mt-1 ${
-                              trend === 'up' ? 'text-green-400' :
-                              trend === 'down' ? 'text-red-400' :
-                              'text-gray-400'
-                            }`}>
-                              {trend === 'up' ? (
-                                <><TrendingUp size={16} /> +{change}</>
-                              ) : trend === 'down' ? (
-                                <><TrendingDown size={16} /> {change}</>
-                              ) : (
-                                <><Minus size={16} /> 0</>
-                              )}
-                            </div>
-                          )}
                         </motion.div>
                       </div>
                     </div>
@@ -530,19 +513,6 @@ export default function DisplayPage() {
                     )}
                   </div>
 
-                  {index === 0 && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.5 }}
-                      className="mt-2 pt-2 border-t border-white/20"
-                    >
-                      <div className="flex items-center gap-1 text-yellow-400">
-                        <Crown size={16} />
-                        <span className="font-semibold text-sm">Leading Team!</span>
-                      </div>
-                    </motion.div>
-                  )}
                 </motion.div>
                 );
               })}
@@ -620,7 +590,7 @@ export default function DisplayPage() {
             {/* Second Column - 1/3 width - Individual Leaders */}
             <div className="flex-1 bg-white/10 backdrop-blur-lg rounded-xl p-4 flex flex-col min-h-0 overflow-hidden">
               <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="text-green-400" size={22} />
+                <Trophy className="text-green-400" size={22} />
                 <h2 className="text-xl font-bold">Individual Leaders</h2>
               </div>
 
@@ -628,8 +598,6 @@ export default function DisplayPage() {
               <AnimatePresence mode="popLayout">
                 {leaderboard.map((entry, index) => {
                   const userComparison = userComparisons.find(uc => uc.userId === entry.userId);
-                  const trend = userComparison?.trend || 'same';
-                  const change = userComparison?.change || 0;
 
                   return (
                   <motion.div
@@ -703,19 +671,6 @@ export default function DisplayPage() {
                           </span>
                           <span className="text-sm text-white/70">points</span>
                         </div>
-                        {hasPreviousWeek && change !== 0 && (
-                          <div className={`text-xs font-medium flex items-center gap-0.5 mt-1 ${
-                            trend === 'up' ? 'text-green-400' :
-                            trend === 'down' ? 'text-red-400' :
-                            'text-gray-400'
-                          }`}>
-                            {trend === 'up' ? (
-                              <><TrendingUp size={12} /> +{change}</>
-                            ) : trend === 'down' ? (
-                              <><TrendingDown size={12} /> {change}</>
-                            ) : null}
-                          </div>
-                        )}
                       </motion.div>
                     </div>
                   </motion.div>
