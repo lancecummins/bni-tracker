@@ -391,6 +391,14 @@ export default function ScoringPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={() => {
+                window.open('/display', '_blank', 'width=1920,height=1080,location=no,menubar=no,toolbar=no');
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              📺 TV Display
+            </button>
+            <button
               onClick={saveAllScores}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >

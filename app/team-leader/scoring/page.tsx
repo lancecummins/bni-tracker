@@ -340,6 +340,14 @@ export default function TeamLeaderScoringPage() {
                 </div>
               )}
 
+              <button
+                onClick={() => {
+                  window.open('/display', '_blank', 'width=1920,height=1080,location=no,menubar=no,toolbar=no');
+                }}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base font-medium"
+              >
+                📺 TV Display
+              </button>
             </div>
           </div>
 
