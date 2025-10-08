@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStaticActiveSession, useStaticUsers, useStaticTeams, useStaticSettings } from '@/lib/firebase/hooks/useStaticData';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 import { scoreService } from '@/lib/firebase/services';
 import { ScoreMetrics, Score } from '@/lib/types';
 import { Save, AlertCircle, CheckCircle, Trophy, Zap, Users } from 'lucide-react';
@@ -18,11 +19,12 @@ interface TeamScoringPageProps {
 export default function TeamScoringPage({ params }: TeamScoringPageProps) {
   const router = useRouter();
   const { teamId } = params;
-  const { session: activeSession } = useStaticActiveSession();
-  const { users } = useStaticUsers();
-  const { teams } = useStaticTeams();
+  const [activeSession, setActiveSession] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [scores, setScores] = useState<Score[]>([]);
-  const { settings } = useStaticSettings();
+  const [settings, setSettings] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const [editedScores, setEditedScores] = useState<Record<string, ScoreMetrics>>({});
   const [saving, setSaving] = useState(false);
@@ -39,21 +41,56 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
     return users.filter(u => u.teamId === teamId && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
   }, [users, teamId]);
 
-  // Load scores for the active session
+  // Load all data directly from Firebase
   useEffect(() => {
-    const loadScores = async () => {
-      if (!activeSession?.id) return;
-
+    const loadData = async () => {
       try {
-        const sessionScores = await scoreService.getBySession(activeSession.id);
-        setScores(sessionScores);
+        setLoading(true);
+
+        // Load active session
+        const sessionsQuery = query(
+          collection(db, 'sessions'),
+          where('status', '==', 'open'),
+          orderBy('createdAt', 'desc')
+        );
+        const sessionsSnapshot = await getDocs(sessionsQuery);
+        const activeSessions = sessionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (activeSessions.length > 0) {
+          setActiveSession(activeSessions[0]);
+        }
+
+        // Load users
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setUsers(usersData);
+
+        // Load teams
+        const teamsSnapshot = await getDocs(collection(db, 'teams'));
+        const teamsData = teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setTeams(teamsData);
+
+        // Load settings
+        const settingsSnapshot = await getDocs(collection(db, 'settings'));
+        if (!settingsSnapshot.empty) {
+          const settingsData = settingsSnapshot.docs[0].data();
+          setSettings(settingsData);
+        }
+
+        // Load scores for active session
+        if (activeSessions.length > 0) {
+          const sessionScores = await scoreService.getBySession(activeSessions[0].id);
+          setScores(sessionScores);
+        }
+
       } catch (error) {
-        console.error('Error loading scores:', error);
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadScores();
-  }, [activeSession?.id]);
+    loadData();
+  }, []);
 
   // Clear save message after 5 seconds
   useEffect(() => {
@@ -148,6 +185,14 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
   const hasUnsavedChanges = (userId: string): boolean => {
     return !!editedScores[userId];
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   if (!activeSession) {
     return (
