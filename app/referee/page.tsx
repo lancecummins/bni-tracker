@@ -286,6 +286,56 @@ export default function RefereePage() {
     }
   };
 
+  const handleCelebrateWinningTeam = async () => {
+    console.log('handleCelebrateWinningTeam called');
+
+    // Find the winning team (highest points)
+    const teamStandings = teams.map(team => {
+      const teamScores = scores.filter(score => {
+        const user = users.find(u => u.id === score.userId);
+        return user?.teamId === team.id;
+      });
+
+      const weeklyPoints = teamScores.reduce((sum, score) => sum + score.totalPoints, 0);
+      const bonuses = getTeamBonuses(team.id);
+      const bonusPoints = bonuses.reduce((sum, bonus) => sum + bonus.points, 0);
+      const totalPoints = weeklyPoints + bonusPoints;
+
+      return {
+        team,
+        members: users.filter(u => u.teamId === team.id),
+        scores: teamScores,
+        weeklyPoints,
+        bonusPoints,
+        totalPoints
+      };
+    }).sort((a, b) => b.totalPoints - a.totalPoints);
+
+    const winningTeam = teamStandings[0];
+
+    if (!winningTeam) {
+      toast.error('No winning team found');
+      return;
+    }
+
+    // Send celebration to display
+    try {
+      await fetch('/api/display', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'CELEBRATE_WINNING_TEAM',
+          winningTeam: winningTeam,
+          settings: settings
+        })
+      });
+
+      toast.success(`Celebrating ${winningTeam.team.name}!`);
+    } catch (error) {
+      toast.error('Failed to show celebration');
+    }
+  };
+
   const handleDisplayTeamBonus = async (teamId: string) => {
     const team = teams.find(t => t.id === teamId);
     if (!team) return;
@@ -423,14 +473,21 @@ export default function RefereePage() {
             </select>
           </div>
 
-          {/* Main Control Button */}
-          <div className="mb-3">
+          {/* Main Control Buttons */}
+          <div className="mb-3 space-y-2">
             <button
               onClick={handleFullScoreboard}
               className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-base font-medium"
             >
               <BarChart3 size={20} />
               Show Full Scoreboard
+            </button>
+            <button
+              onClick={handleCelebrateWinningTeam}
+              className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-base font-medium"
+            >
+              <Trophy size={20} />
+              Celebrate Winning Team
             </button>
           </div>
 

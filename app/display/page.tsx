@@ -23,7 +23,7 @@ import RefereeDisplay from './referee/page';
 
 
 interface DisplayData {
-  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD' | 'DISPLAY_TEAM_BONUS';
+  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD' | 'DISPLAY_TEAM_BONUS' | 'CELEBRATE_WINNING_TEAM';
   user?: User;
   team?: Team;
   score?: Score;
@@ -34,6 +34,8 @@ interface DisplayData {
   revealedUserIds?: string[];
   // For bonus display
   teamId?: string;
+  // For celebration
+  winningTeam?: any;
   teamName?: string;
   teamColor?: string;
   bonusTotal?: number;
@@ -312,6 +314,159 @@ export default function DisplayPage() {
         </div>
       );
     }
+
+    // Special handling for winning team celebration
+    if (displayData.type === 'CELEBRATE_WINNING_TEAM') {
+      const { winningTeam } = displayData;
+
+      return (
+        <div className="h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white flex items-center justify-center relative overflow-hidden">
+          {/* Celebration Background Effects */}
+          <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 via-purple-900 to-blue-900" />
+
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{
+              type: "spring",
+              stiffness: 100,
+              damping: 20,
+              duration: 1
+            }}
+            className="text-center max-w-6xl mx-auto p-8 z-10"
+          >
+            {/* Giant Trophy */}
+            <motion.div
+              initial={{ y: -100, scale: 0 }}
+              animate={{ y: 0, scale: 1 }}
+              transition={{
+                type: "spring",
+                stiffness: 200,
+                damping: 15,
+                delay: 0.2
+              }}
+              className="mb-8"
+            >
+              <Trophy className="mx-auto h-48 w-48 text-yellow-400 drop-shadow-2xl" />
+            </motion.div>
+
+            {/* Huge Team Name */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{
+                type: "spring",
+                stiffness: 150,
+                damping: 20,
+                delay: 0.4
+              }}
+              className="mb-12"
+            >
+              <h1
+                className="text-8xl font-bold mb-4 drop-shadow-2xl"
+                style={{ color: winningTeam.team.color || '#FFD700' }}
+              >
+                {winningTeam.team.name}
+              </h1>
+              <h2 className="text-6xl font-bold text-yellow-400 drop-shadow-lg">
+                CHAMPIONS!
+              </h2>
+              <div className="mt-4">
+                <span className="text-4xl font-bold text-white drop-shadow-lg">
+                  {winningTeam.totalPoints} Points
+                </span>
+              </div>
+            </motion.div>
+
+            {/* Member Scores */}
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8, duration: 0.6 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto"
+            >
+              {winningTeam.members.map((member: any, index: number) => {
+                const memberScore = winningTeam.scores.find((s: any) => s.userId === member.id);
+                const points = memberScore?.totalPoints || 0;
+
+                return (
+                  <motion.div
+                    key={member.id}
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 200,
+                      damping: 20,
+                      delay: 1 + index * 0.1
+                    }}
+                    className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border-2 border-yellow-400/50"
+                  >
+                    <h3 className="text-2xl font-bold text-white mb-2">
+                      {member.firstName} {member.lastName}
+                    </h3>
+                    <div className="text-3xl font-bold text-yellow-400">
+                      {points} pts
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          </motion.div>
+
+          {/* Massive Confetti Effect */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            onAnimationComplete={() => {
+              // Trigger multiple confetti bursts
+              setTimeout(() => {
+                confetti({
+                  particleCount: 200,
+                  spread: 100,
+                  origin: { y: 0.4 },
+                  colors: [winningTeam.team.color || '#FFD700', '#FFD700', '#FFA500', '#FF6B6B', '#4ECDC4']
+                });
+              }, 100);
+
+              setTimeout(() => {
+                confetti({
+                  particleCount: 150,
+                  spread: 80,
+                  origin: { x: 0.2, y: 0.6 },
+                  colors: [winningTeam.team.color || '#FFD700', '#FFD700', '#FFA500']
+                });
+              }, 300);
+
+              setTimeout(() => {
+                confetti({
+                  particleCount: 150,
+                  spread: 80,
+                  origin: { x: 0.8, y: 0.6 },
+                  colors: [winningTeam.team.color || '#FFD700', '#FFD700', '#FFA500']
+                });
+              }, 500);
+
+              // Continuous confetti for 5 seconds
+              const interval = setInterval(() => {
+                confetti({
+                  particleCount: 50,
+                  spread: 60,
+                  origin: { y: 0.8 },
+                  colors: [winningTeam.team.color || '#FFD700', '#FFD700', '#FFA500']
+                });
+              }, 300);
+
+              setTimeout(() => {
+                clearInterval(interval);
+              }, 5000);
+            }}
+          />
+        </div>
+      );
+    }
+
     return <RefereeDisplay initialData={displayData} />;
   }
 
@@ -436,20 +591,57 @@ export default function DisplayPage() {
                   <div className="p-3 flex flex-col gap-2">
                     {/* Main content row */}
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1">
                         <div className={`text-3xl font-bold ${
                           index === 0 ? 'text-yellow-400' : 'text-white'
                         }`}>
                           {index + 1}
                         </div>
-                        <div>
-                          <div>
-                            <h3 className="text-2xl font-semibold text-white">{team.team.name}</h3>
-                          </div>
-                          <div>
-                            <p className="text-sm text-white/80">
-                              {team.members.length} {team.members.length === 1 ? 'member' : 'members'} shown
-                            </p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div>
+                              <h3 className="text-2xl font-semibold text-white">{team.team.name}</h3>
+                              <p className="text-sm text-white/80">
+                                {team.members.length} {team.members.length === 1 ? 'member' : 'members'} shown
+                              </p>
+                            </div>
+                            {/* Bonus cards inline */}
+                            {(team.bonusPoints || 0) > 0 && team.bonusCategories && team.bonusCategories.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {team.bonusCategories.map((category, catIndex) => {
+                                  const categoryPoints = settings?.bonusValues?.[category as keyof typeof settings.bonusValues] || 0;
+                                  const displayName = category === 'one21s' ? '1-2-1s' :
+                                                      category === 'tyfcb' ? 'TYFCB' :
+                                                      category.charAt(0).toUpperCase() + category.slice(1);
+
+                                  return (
+                                    <motion.div
+                                      key={category}
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      transition={{
+                                        delay: 0.4 + index * 0.05 + catIndex * 0.1,
+                                        type: "spring",
+                                        stiffness: 260,
+                                        damping: 20
+                                      }}
+                                      className="bg-gradient-to-r from-green-500/90 to-emerald-500/90 rounded-lg px-2 py-1 shadow-lg border border-green-400/50"
+                                    >
+                                      <div className="flex items-center gap-1">
+                                        <Gift size={12} className="text-yellow-300" />
+                                        <div>
+                                          <div className="text-xs text-green-100 font-medium">All In</div>
+                                          <div className="text-white font-bold text-xs">{displayName}</div>
+                                        </div>
+                                        <div className="text-yellow-300 font-bold text-xs ml-1">
+                                          +{categoryPoints}
+                                        </div>
+                                      </div>
+                                    </motion.div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -470,49 +662,6 @@ export default function DisplayPage() {
                         </motion.div>
                       </div>
                     </div>
-
-                    {/* Bonus cards row */}
-                    {(team.bonusPoints || 0) > 0 && team.bonusCategories && team.bonusCategories.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 + index * 0.05 }}
-                        className="flex flex-wrap gap-2"
-                      >
-                        {team.bonusCategories.map((category, catIndex) => {
-                          const categoryPoints = settings?.bonusValues?.[category as keyof typeof settings.bonusValues] || 0;
-                          const displayName = category === 'one21s' ? '1-2-1s' :
-                                              category === 'tyfcb' ? 'TYFCB' :
-                                              category.charAt(0).toUpperCase() + category.slice(1);
-
-                          return (
-                            <motion.div
-                              key={category}
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{
-                                delay: 0.4 + index * 0.05 + catIndex * 0.1,
-                                type: "spring",
-                                stiffness: 260,
-                                damping: 20
-                              }}
-                              className="bg-gradient-to-r from-green-500/90 to-emerald-500/90 rounded-lg px-2 py-1 shadow-lg border border-green-400/50"
-                            >
-                              <div className="flex items-center gap-2">
-                                <Gift size={14} className="text-yellow-300" />
-                                <div>
-                                  <div className="text-xs text-green-100 font-medium">All In</div>
-                                  <div className="text-white font-bold text-xs">{displayName}</div>
-                                </div>
-                                <div className="text-yellow-300 font-bold text-sm ml-1">
-                                  +{categoryPoints}
-                                </div>
-                              </div>
-                            </motion.div>
-                          );
-                        })}
-                      </motion.div>
-                    )}
                   </div>
 
                 </motion.div>
