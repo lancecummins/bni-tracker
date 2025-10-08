@@ -457,7 +457,7 @@ export default function TeamLeaderScoringPage() {
                       <p className="font-medium text-gray-900">
                         {member.firstName} {member.lastName}
                       </p>
-                      <p className="text-xs text-gray-500">{member.email}</p>
+                      <p className="text-xs text-gray-500 capitalize">{member.role}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-500">Total</p>
@@ -711,7 +711,7 @@ export default function TeamLeaderScoringPage() {
                             <div className="font-medium text-gray-900">
                               {member.firstName} {member.lastName}
                             </div>
-                            <div className="text-xs text-gray-500">{member.email}</div>
+                            <div className="text-xs text-gray-500 capitalize">{member.role}</div>
                           </div>
                         </div>
                       </td>
