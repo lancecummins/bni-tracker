@@ -470,7 +470,7 @@ export default function DisplayPage() {
                     </div>
 
                     {/* Bonus cards row */}
-                    {team.bonusPoints && team.bonusPoints > 0 && team.bonusCategories && team.bonusCategories.length > 0 && (
+                    {(team.bonusPoints || 0) > 0 && team.bonusCategories && team.bonusCategories.length > 0 && (
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
