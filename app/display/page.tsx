@@ -431,23 +431,23 @@ export default function DisplayPage() {
                   onClick={() => router.push(`/display/team/${team.teamId}`)}
                 >
                   {/* Colored bar at top */}
-                  <div className="h-4" style={{ backgroundColor: team.team.color || '#3B82F6' }} />
+                  <div className="h-3" style={{ backgroundColor: team.team.color || '#3B82F6' }} />
 
-                  <div className="p-5 flex flex-col gap-3">
+                  <div className="p-3 flex flex-col gap-2">
                     {/* Main content row */}
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-4">
-                        <div className={`text-5xl font-bold ${
+                      <div className="flex items-center gap-3">
+                        <div className={`text-3xl font-bold ${
                           index === 0 ? 'text-yellow-400' : 'text-white'
                         }`}>
                           {index + 1}
                         </div>
                         <div>
                           <div>
-                            <h3 className="text-3xl font-semibold text-white">{team.team.name}</h3>
+                            <h3 className="text-2xl font-semibold text-white">{team.team.name}</h3>
                           </div>
-                          <div className="mt-1">
-                            <p className="text-base text-white/80">
+                          <div>
+                            <p className="text-sm text-white/80">
                               {team.members.length} {team.members.length === 1 ? 'member' : 'members'} shown
                             </p>
                           </div>
@@ -462,10 +462,10 @@ export default function DisplayPage() {
                           className="flex flex-col items-end"
                         >
                           <div className="inline-flex flex-col items-center">
-                            <span className="text-5xl font-bold text-white">
+                            <span className="text-4xl font-bold text-white">
                               {team.weeklyPoints + (team.bonusPoints || 0)}
                             </span>
-                            <span className="text-lg text-white/80 mt-1">points</span>
+                            <span className="text-sm text-white/80">points</span>
                           </div>
                           {hasPreviousWeek && change !== 0 && (
                             <div className={`text-xs font-medium flex items-center gap-0.5 mt-1 ${
@@ -511,15 +511,15 @@ export default function DisplayPage() {
                                 stiffness: 260,
                                 damping: 20
                               }}
-                              className="bg-gradient-to-r from-green-500/90 to-emerald-500/90 rounded-lg px-3 py-2 shadow-lg border border-green-400/50"
+                              className="bg-gradient-to-r from-green-500/90 to-emerald-500/90 rounded-lg px-2 py-1 shadow-lg border border-green-400/50"
                             >
                               <div className="flex items-center gap-2">
-                                <Gift size={16} className="text-yellow-300" />
+                                <Gift size={14} className="text-yellow-300" />
                                 <div>
                                   <div className="text-xs text-green-100 font-medium">All In</div>
-                                  <div className="text-white font-bold text-sm">{displayName}</div>
+                                  <div className="text-white font-bold text-xs">{displayName}</div>
                                 </div>
-                                <div className="text-yellow-300 font-bold text-lg ml-2">
+                                <div className="text-yellow-300 font-bold text-sm ml-1">
                                   +{categoryPoints}
                                 </div>
                               </div>
@@ -535,11 +535,11 @@ export default function DisplayPage() {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: 0.5 }}
-                      className="mt-3 pt-3 border-t border-white/20"
+                      className="mt-2 pt-2 border-t border-white/20"
                     >
-                      <div className="flex items-center gap-2 text-yellow-400">
-                        <Crown size={20} />
-                        <span className="font-semibold">Leading Team!</span>
+                      <div className="flex items-center gap-1 text-yellow-400">
+                        <Crown size={16} />
+                        <span className="font-semibold text-sm">Leading Team!</span>
                       </div>
                     </motion.div>
                   )}
