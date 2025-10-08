@@ -238,7 +238,7 @@ export default function SessionsPage() {
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold">
-                          Week {session.weekNumber}
+                          {session.name || `Week ${session.weekNumber}`}
                         </h3>
                         <p className="text-gray-600">
                           {session.date &&

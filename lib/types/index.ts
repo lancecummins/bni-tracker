@@ -60,6 +60,7 @@ export type SessionStatus = 'draft' | 'open' | 'closed';
 
 export interface Session {
   id?: string;
+  name?: string;
   seasonId: string;
   weekNumber: number;
   date: Timestamp;

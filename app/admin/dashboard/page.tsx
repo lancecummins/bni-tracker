@@ -33,6 +33,7 @@ export default function AdminDashboard() {
 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [sessionDate, setSessionDate] = useState('');
+  const [sessionName, setSessionName] = useState('');
   const [creatingSession, setCreatingSession] = useState(false);
 
   const loading = sessionLoading || usersLoading || teamsLoading || scoresLoading;
@@ -44,14 +45,19 @@ export default function AdminDashboard() {
     ? Math.round((scoresEntered / scoringEligibleUsers.length) * 100)
     : 0;
 
-  // Set default date to today when modal opens
+  // Set default date and name when modal opens
   useEffect(() => {
     if (showSessionModal) {
       const today = new Date();
       const formattedDate = today.toISOString().split('T')[0];
       setSessionDate(formattedDate);
+
+      // Set default name
+      const weekNumber = allSessions.length + 1;
+      const defaultName = formatSessionName(weekNumber, today);
+      setSessionName(defaultName);
     }
-  }, [showSessionModal]);
+  }, [showSessionModal, allSessions.length]);
 
   const formatSessionName = (weekNumber: number, date: Date) => {
     const months = [
@@ -70,6 +76,11 @@ export default function AdminDashboard() {
       return;
     }
 
+    if (!sessionName.trim()) {
+      toast.error('Please enter a session name');
+      return;
+    }
+
     try {
       setCreatingSession(true);
 
@@ -79,6 +90,7 @@ export default function AdminDashboard() {
       const weekNumber = allSessions.length + 1;
 
       const newSession: Omit<Session, 'id'> = {
+        name: sessionName.trim(),
         seasonId: 'season-id', // This should come from active season
         weekNumber: weekNumber,
         date: Timestamp.fromDate(selectedDate),
@@ -89,11 +101,11 @@ export default function AdminDashboard() {
 
       await sessionService.create(newSession);
 
-      const sessionName = formatSessionName(weekNumber, selectedDate);
       toast.success(`Session opened: ${sessionName}`);
 
       setShowSessionModal(false);
       setSessionDate('');
+      setSessionName('');
     } catch (error) {
       console.error('Error creating session:', error);
       toast.error('Failed to open session');
@@ -116,6 +128,9 @@ export default function AdminDashboard() {
 
   const getSessionDisplayName = (session: Session | null) => {
     if (!session) return 'No Session';
+    // Use custom name if available
+    if (session.name) return session.name;
+    // Otherwise use formatted name
     if (session.date) {
       const date = session.date.toDate();
       return formatSessionName(session.weekNumber, date);
@@ -177,7 +192,11 @@ export default function AdminDashboard() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Create New Session</h2>
               <button
-                onClick={() => setShowSessionModal(false)}
+                onClick={() => {
+                  setShowSessionModal(false);
+                  setSessionDate('');
+                  setSessionName('');
+                }}
                 className="p-1 hover:bg-gray-100 rounded"
               >
                 <X size={24} />
@@ -193,21 +212,36 @@ export default function AdminDashboard() {
                   <input
                     type="date"
                     value={sessionDate}
-                    onChange={(e) => setSessionDate(e.target.value)}
+                    onChange={(e) => {
+                      setSessionDate(e.target.value);
+                      // Update default name when date changes
+                      if (e.target.value) {
+                        const weekNumber = allSessions.length + 1;
+                        const newName = formatSessionName(weekNumber, new Date(e.target.value + 'T12:00:00'));
+                        setSessionName(newName);
+                      }
+                    }}
                     className="w-full px-4 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 </div>
               </div>
 
-              {sessionDate && (
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600">This session will be created as:</p>
-                  <p className="font-medium text-blue-900 mt-1">
-                    {formatSessionName(allSessions.length + 1, new Date(sessionDate + 'T12:00:00'))}
-                  </p>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Session Name
+                </label>
+                <input
+                  type="text"
+                  value={sessionName}
+                  onChange={(e) => setSessionName(e.target.value)}
+                  placeholder="Enter session name"
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Customize the name that will be displayed for this session
+                </p>
+              </div>
 
               <div className="flex gap-3 pt-4">
                 <button
@@ -221,6 +255,7 @@ export default function AdminDashboard() {
                   onClick={() => {
                     setShowSessionModal(false);
                     setSessionDate('');
+                    setSessionName('');
                   }}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                 >
