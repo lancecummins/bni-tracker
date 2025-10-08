@@ -359,20 +359,22 @@ export default function DisplayPage() {
             className="object-contain"
             priority
           />
-          <div className="flex items-center gap-4">
-            <p className="text-lg opacity-90">
-              Week {activeSession.weekNumber}
-            </p>
-            {lastUpdateTime && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="flex items-center gap-1 px-2 py-0.5 bg-green-500/30 rounded-full"
-              >
-                <Zap className="text-yellow-400" size={16} />
-                <span className="text-xs">LIVE</span>
-              </motion.div>
-            )}
+          <div className="flex flex-col items-center gap-1">
+            <h1 className="text-3xl font-bold">
+              {activeSession.name || `Week ${activeSession.weekNumber}`}
+            </h1>
+            <div className="flex items-center gap-3">
+              {lastUpdateTime && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="flex items-center gap-1 px-2 py-0.5 bg-green-500/30 rounded-full"
+                >
+                  <Zap className="text-yellow-400" size={16} />
+                  <span className="text-xs">LIVE</span>
+                </motion.div>
+              )}
+            </div>
           </div>
           <button
             onClick={() => router.push('/display/season')}
@@ -561,23 +563,26 @@ export default function DisplayPage() {
                       return (
                         <div
                           key={category.key}
-                          className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-lg p-3 flex flex-col border border-yellow-400/30"
+                          className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-lg p-3 flex border border-yellow-400/30"
                         >
-                          <div className="text-sm font-medium text-white/90 mb-1">
-                            {category.label}
-                          </div>
-                          <div className="text-3xl font-bold text-yellow-400 mb-1">
-                            {maxScore}
-                          </div>
-                          <div className="flex-1 min-h-0">
-                            {topAchievers.slice(0, 1).map((achiever) => (
-                              <div key={achiever.userId} className="text-sm font-semibold text-white truncate">
-                                {achiever.user.firstName} {achiever.user.lastName}
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="shrink-0">
+                              <div className="text-sm font-medium text-white/90 mb-1">
+                                {category.label}
                               </div>
-                            ))}
-                            {topAchievers.length > 1 && (
-                              <div className="text-white/60 text-xs">+{topAchievers.length - 1} more</div>
-                            )}
+                              <div className="text-3xl font-bold text-yellow-400">
+                                {maxScore}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="space-y-1">
+                                {topAchievers.map((achiever) => (
+                                  <div key={achiever.userId} className="text-sm font-semibold text-white">
+                                    {achiever.user.firstName} {achiever.user.lastName}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );
