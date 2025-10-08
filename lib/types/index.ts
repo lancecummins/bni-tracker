@@ -67,6 +67,7 @@ export interface Session {
   createdBy: string;
   createdAt: Timestamp;
   closedAt?: Timestamp | null;
+  isArchived?: boolean;
 }
 
 export interface ScoreMetrics {

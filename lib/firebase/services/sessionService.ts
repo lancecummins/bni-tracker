@@ -102,6 +102,14 @@ export const sessionService = {
     });
   },
 
+  // Archive session
+  async archive(id: string, archived: boolean = true): Promise<void> {
+    const docRef = doc(db, COLLECTION_NAME, id);
+    await updateDoc(docRef, {
+      isArchived: archived,
+    });
+  },
+
   // Update session
   async update(id: string, data: Partial<Session>): Promise<void> {
     const docRef = doc(db, COLLECTION_NAME, id);

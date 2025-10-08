@@ -3,14 +3,20 @@
 import { useState, useEffect } from 'react';
 import { sessionService, scoreService } from '@/lib/firebase/services';
 import { Session, Score } from '@/lib/types';
-import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+type SortBy = 'date' | 'week' | 'status' | 'points';
+type SortOrder = 'asc' | 'desc';
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionScores, setSessionScores] = useState<Record<string, Score[]>>({});
   const [loading, setLoading] = useState(true);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [sortBy, setSortBy] = useState<SortBy>('date');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   useEffect(() => {
     loadSessions();
@@ -61,6 +67,17 @@ export default function SessionsPage() {
     }
   };
 
+  const handleArchiveSession = async (sessionId: string, archive: boolean) => {
+    try {
+      await sessionService.archive(sessionId, archive);
+      toast.success(archive ? 'Session archived' : 'Session unarchived');
+      loadSessions();
+    } catch (error) {
+      console.error('Error archiving session:', error);
+      toast.error('Failed to archive session');
+    }
+  };
+
   const getSessionStats = (sessionId: string) => {
     const scores = sessionScores[sessionId] || [];
     const totalPoints = scores.reduce((sum, score) => sum + score.totalPoints, 0);
@@ -82,6 +99,42 @@ export default function SessionsPage() {
       .slice(0, 3);
   };
 
+  // Filter and sort sessions
+  const filteredAndSortedSessions = sessions
+    .filter(session => showArchived || !session.isArchived)
+    .sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortBy) {
+        case 'date':
+          comparison = (a.date?.seconds || 0) - (b.date?.seconds || 0);
+          break;
+        case 'week':
+          comparison = a.weekNumber - b.weekNumber;
+          break;
+        case 'status':
+          const statusOrder = { 'open': 0, 'draft': 1, 'closed': 2 };
+          comparison = statusOrder[a.status] - statusOrder[b.status];
+          break;
+        case 'points':
+          const aStats = getSessionStats(a.id!);
+          const bStats = getSessionStats(b.id!);
+          comparison = aStats.totalPoints - bStats.totalPoints;
+          break;
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+  const toggleSort = (field: SortBy) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -101,19 +154,64 @@ export default function SessionsPage() {
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Calendar size={20} />
-            {sessions.length} Total Sessions
+            {filteredAndSortedSessions.length} of {sessions.length} Sessions
+          </div>
+        </div>
+      </div>
+
+      {/* Filters and Sorting */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          {/* Archive Toggle */}
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              showArchived
+                ? 'bg-gray-800 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {showArchived ? <Eye size={18} /> : <EyeOff size={18} />}
+            {showArchived ? 'Showing Archived' : 'Hide Archived'}
+          </button>
+
+          {/* Sorting Options */}
+          <div className="flex gap-2 items-center">
+            <span className="text-sm text-gray-500">Sort by:</span>
+            <div className="flex gap-2">
+              {(['date', 'week', 'status', 'points'] as SortBy[]).map((field) => (
+                <button
+                  key={field}
+                  onClick={() => toggleSort(field)}
+                  className={`px-3 py-1 rounded-lg text-sm capitalize transition-colors ${
+                    sortBy === field
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {field}
+                  {sortBy === field && (
+                    <span className="ml-1">
+                      {sortOrder === 'desc' ? '↓' : '↑'}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Sessions List */}
       <div className="space-y-4">
-        {sessions.length === 0 ? (
+        {filteredAndSortedSessions.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
-            <p className="text-gray-500">No sessions found</p>
+            <p className="text-gray-500">
+              {showArchived ? 'No sessions found' : 'No active sessions found. Click "Show Archived" to see archived sessions.'}
+            </p>
           </div>
         ) : (
-          sessions.map((session) => {
+          filteredAndSortedSessions.map((session) => {
             const stats = getSessionStats(session.id!);
             const isExpanded = expandedSession === session.id;
             const topPerformers = getTopPerformers(session.id!);
@@ -175,8 +273,14 @@ export default function SessionsPage() {
                         </div>
                       </div>
 
-                      {/* Status Badge */}
+                      {/* Status Badge and Archive Indicator */}
                       <div className="flex items-center gap-2">
+                        {session.isArchived && (
+                          <span className="flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+                            <Archive size={16} />
+                            Archived
+                          </span>
+                        )}
                         {session.status === 'closed' ? (
                           <span className="flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
                             <CheckCircle size={16} />
@@ -267,6 +371,21 @@ export default function SessionsPage() {
                                 Close Session
                               </button>
                             ) : null}
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleArchiveSession(session.id!, !session.isArchived);
+                              }}
+                              className={`w-full px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                                session.isArchived
+                                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                  : 'bg-gray-600 text-white hover:bg-gray-700'
+                              }`}
+                            >
+                              <Archive size={18} />
+                              {session.isArchived ? 'Unarchive' : 'Archive'}
+                            </button>
 
                             <button
                               className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
