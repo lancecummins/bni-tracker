@@ -1,12 +1,30 @@
 'use client';
 
-import { useStaticTeams } from '@/lib/firebase/hooks/useStaticData';
 import { Copy, ExternalLink } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 export default function TeamLinksPage() {
-  const { teams } = useStaticTeams();
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadTeams = async () => {
+      try {
+        const teamsSnapshot = await getDocs(collection(db, 'teams'));
+        const teamsData = teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setTeams(teamsData);
+      } catch (error) {
+        console.error('Error loading teams:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTeams();
+  }, []);
 
   const copyToClipboard = async (text: string, teamId: string) => {
     try {
@@ -19,6 +37,14 @@ export default function TeamLinksPage() {
   };
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
