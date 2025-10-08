@@ -18,7 +18,7 @@ export default function TeamLinksPage() {
     }
   };
 
-  const baseUrl = window.location.origin;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
     <div className="min-h-screen bg-gray-50">

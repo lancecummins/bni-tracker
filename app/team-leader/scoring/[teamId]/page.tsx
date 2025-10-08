@@ -107,28 +107,18 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
     setSavingUsers(prev => ({ ...prev, [userId]: true }));
 
     try {
-      const existingScore = scores.find(s => s.userId === userId);
-
-      if (existingScore) {
-        // Update existing score
-        await scoreService.update(existingScore.id!, {
-          metrics,
-          totalPoints: calculateTotal(metrics),
-          status: 'published',
-          lastUpdated: Timestamp.now()
-        });
-      } else {
-        // Create new score
-        await scoreService.create({
-          userId,
-          sessionId: activeSession.id,
-          metrics,
-          totalPoints: calculateTotal(metrics),
-          status: 'published',
-          createdAt: Timestamp.now(),
-          lastUpdated: Timestamp.now()
-        });
-      }
+      // Use upsert to create or update score
+      await scoreService.upsert({
+        userId,
+        sessionId: activeSession.id,
+        seasonId: 'season-id', // Should come from active season
+        teamId: teamId,
+        metrics,
+        totalPoints: calculateTotal(metrics),
+        isDraft: false,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
 
       // Reload scores to get the updated data
       const sessionScores = await scoreService.getBySession(activeSession.id);

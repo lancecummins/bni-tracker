@@ -14,6 +14,7 @@ import {
   LogOut,
   CheckSquare,
   Upload,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { useAuth } from '@/lib/firebase/hooks/useAuth';
 import { useUsers } from '@/lib/firebase/hooks/useUsers';
@@ -90,6 +91,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             >
               <Monitor size={20} />
               <span className="font-medium">TV Display</span>
+            </Link>
+            <Link
+              href="/team-links"
+              target="_blank"
+              className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <LinkIcon size={20} />
+              <span className="font-medium">Team Links</span>
             </Link>
           </div>
 
