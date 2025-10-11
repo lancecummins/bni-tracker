@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useStaticActiveSession, useStaticSettings, useStaticSeasonSessions } from '@/lib/firebase/hooks/useStaticData';
 import { sessionService, scoreService } from '@/lib/firebase/services';
@@ -43,7 +43,7 @@ interface DisplayData {
   bonusCategories?: string[];
 }
 
-export default function DisplayPage() {
+function DisplayPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionIdParam = searchParams.get('sessionId');
@@ -953,5 +953,17 @@ export default function DisplayPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function DisplayPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"></div>
+      </div>
+    }>
+      <DisplayPageContent />
+    </Suspense>
   );
 }
