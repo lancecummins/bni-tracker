@@ -15,7 +15,8 @@ import {
   UserMinus,
   Palette,
   Crown,
-  GripVertical
+  GripVertical,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 
@@ -27,6 +28,7 @@ export default function TeamsPage() {
   const [showUserAssignment, setShowUserAssignment] = useState<string | null>(null);
   const [draggedUser, setDraggedUser] = useState<User | null>(null);
   const [dragOverTeam, setDragOverTeam] = useState<string | null>(null);
+  const [editingLogoUrl, setEditingLogoUrl] = useState<string | null>(null);
 
   const loading = teamsLoading || usersLoading;
 
@@ -42,7 +44,9 @@ export default function TeamsPage() {
       ...teamEdits,
       [team.id!]: {
         name: team.name,
+        slug: team.slug || '',
         color: team.color,
+        logoUrl: team.logoUrl || '',
       },
     });
   };
@@ -75,6 +79,7 @@ export default function TeamsPage() {
       return updated;
     });
   };
+
 
   const handleAssignUser = async (userId: string, fromTeamId: string | null, toTeamId: string) => {
     try {
@@ -268,6 +273,31 @@ export default function TeamsPage() {
                           [team.id!]: { ...edits, name: e.target.value },
                         })
                       }
+                      placeholder="Team Name"
+                      className="w-full px-3 py-2 rounded text-gray-900"
+                    />
+                    <input
+                      type="text"
+                      value={edits.slug || team.slug || ''}
+                      onChange={(e) =>
+                        setTeamEdits({
+                          ...teamEdits,
+                          [team.id!]: { ...edits, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') },
+                        })
+                      }
+                      placeholder="URL slug (e.g., team-alpha)"
+                      className="w-full px-3 py-2 rounded text-gray-900"
+                    />
+                    <input
+                      type="text"
+                      value={edits.logoUrl || ''}
+                      onChange={(e) =>
+                        setTeamEdits({
+                          ...teamEdits,
+                          [team.id!]: { ...edits, logoUrl: e.target.value },
+                        })
+                      }
+                      placeholder="Logo URL (e.g., /team-logos/alpha.png)"
                       className="w-full px-3 py-2 rounded text-gray-900"
                     />
                     <div className="flex items-center gap-2">
@@ -299,11 +329,29 @@ export default function TeamsPage() {
                   </div>
                 ) : (
                   <div className="flex justify-between items-center">
-                    <div>
-                      <h2 className="text-xl font-bold">{team.name}</h2>
-                      <p className="text-white/80 text-sm">
-                        {teamMembers.length} members | {team.totalPoints || 0} points
-                      </p>
+                    <div className="flex items-center gap-4">
+                      {team.logoUrl ? (
+                        <img
+                          src={team.logoUrl}
+                          alt={`${team.name} logo`}
+                          className="w-16 h-16 rounded-lg object-cover bg-white/20"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg bg-white/20 flex items-center justify-center">
+                          <ImageIcon size={32} className="text-white/40" />
+                        </div>
+                      )}
+                      <div>
+                        <h2 className="text-xl font-bold">{team.name}</h2>
+                        <p className="text-white/80 text-sm">
+                          {teamMembers.length} members | {team.totalPoints || 0} points
+                        </p>
+                        {team.slug && (
+                          <p className="text-white/60 text-xs font-mono">
+                            /{team.slug}/scoring
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <button

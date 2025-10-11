@@ -17,7 +17,9 @@ export interface User {
 export interface Team {
   id?: string;
   name: string;
+  slug?: string; // URL-friendly identifier for team scoring pages
   color: string;
+  logoUrl?: string; // URL to team logo image
   captainId?: string;
   teamLeaderId?: string; // User ID of the team leader who can enter scores
   memberIds: string[];

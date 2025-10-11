@@ -8,8 +8,8 @@ import { LogIn, AlertCircle } from 'lucide-react';
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('lance+lancecummins@lancecummins.com');
+  const [password, setPassword] = useState('password123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,11 +28,6 @@ export default function LoginPage() {
     }
   };
 
-  // Quick login buttons for testing
-  const quickLogin = (email: string, password: string) => {
-    setEmail(email);
-    setPassword(password);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -90,105 +85,6 @@ export default function LoginPage() {
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-
-          {/* Quick login buttons for development */}
-          <div className="mt-8 pt-6 border-t">
-            <p className="text-sm text-gray-600 mb-3">Quick login for BNI members:</p>
-            <div className="space-y-2">
-              {/* Admin */}
-              <button
-                type="button"
-                onClick={() => quickLogin('lance+lancecummins@lancecummins.com', 'password123')}
-                className="w-full text-left px-3 py-2 text-sm bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium text-purple-700">Lance Cummins</span>
-                    <span className="text-xs text-purple-600 ml-2">(Admin - President)</span>
-                  </div>
-                  <span className="text-xs text-purple-500">VooHQ</span>
-                </div>
-              </button>
-
-              {/* Team Leaders */}
-              <button
-                type="button"
-                onClick={() => quickLogin('lance+tinusvanwyk@lancecummins.com', 'password123')}
-                className="w-full text-left px-3 py-2 text-sm bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium text-blue-700">Tinus Van Wyk</span>
-                    <span className="text-xs text-blue-600 ml-2">(Team Leader - VP)</span>
-                  </div>
-                  <span className="text-xs text-blue-500">Superstein PA</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => quickLogin('lance+alexanderjenkins@lancecummins.com', 'password123')}
-                className="w-full text-left px-3 py-2 text-sm bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium text-blue-700">Alexander Jenkins</span>
-                    <span className="text-xs text-blue-600 ml-2">(Team Leader - Secretary)</span>
-                  </div>
-                  <span className="text-xs text-blue-500">Universal Roofing</span>
-                </div>
-              </button>
-
-              {/* Regular Members */}
-              <button
-                type="button"
-                onClick={() => quickLogin('lance+michellgray@lancecummins.com', 'password123')}
-                className="w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium text-gray-700">Michelle Gray</span>
-                    <span className="text-xs text-gray-600 ml-2">(Member)</span>
-                  </div>
-                  <span className="text-xs text-gray-500">Coldwell Banker</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => quickLogin('lance+craighill@lancecummins.com', 'password123')}
-                className="w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium text-gray-700">Craig Hill</span>
-                    <span className="text-xs text-gray-600 ml-2">(Member)</span>
-                  </div>
-                  <span className="text-xs text-gray-500">Sanders Heating</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => quickLogin('lance+asherhopes@lancecummins.com', 'password123')}
-                className="w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium text-gray-700">Asher Hoopes</span>
-                    <span className="text-xs text-gray-600 ml-2">(Member)</span>
-                  </div>
-                  <span className="text-xs text-gray-500">MassMutual</span>
-                </div>
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 mt-3">
-              Note: Default password is 'password123' for all accounts.
-              <br />
-              Email format: lance+firstnamelastname@lancecummins.com
-            </p>
-          </div>
         </div>
       </div>
     </div>

@@ -43,9 +43,9 @@ export function useSeasonTotals(seasonId: string | null) {
         setLoading(true);
         const scoresMap = new Map<string, Score[]>();
 
-        // Load scores for all sessions
+        // Load scores for all non-archived sessions
         for (const session of sessions) {
-          if (session.id && session.status !== 'draft') {
+          if (session.id && session.status !== 'draft' && !session.isArchived) {
             const scores = await scoreService.getBySession(session.id);
             scoresMap.set(session.id, scores);
           }

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useStaticActiveSession, useStaticSettings } from '@/lib/firebase/hooks/useStaticData';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useStaticActiveSession, useStaticSettings, useStaticSeasonSessions } from '@/lib/firebase/hooks/useStaticData';
+import { sessionService, scoreService } from '@/lib/firebase/services';
 import {
   useStaticLeaderboard,
   useStaticTeamStandings,
@@ -10,7 +11,7 @@ import {
 } from '@/lib/firebase/hooks/useStaticCompositeData';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { Trophy, Users, Zap, Star, Gift } from 'lucide-react';
+import { Trophy, Users, Zap, Star, Gift, ChevronDown } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import { User, Team, Score } from '@/lib/types';
 import { displayChannel } from '@/lib/utils/displayChannel';
@@ -44,15 +45,25 @@ interface DisplayData {
 
 export default function DisplayPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionIdParam = searchParams.get('sessionId');
   const [refreshKey, setRefreshKey] = useState(0);
   const { session: activeSession } = useStaticActiveSession();
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [currentSession, setCurrentSession] = useState<typeof activeSession>(null);
+  const [showSessionDropdown, setShowSessionDropdown] = useState(false);
+  const { sessions: allSessions } = useStaticSeasonSessions(activeSession?.seasonId || null);
   const { settings } = useStaticSettings();
+
+  // Determine which session to display
+  const displaySessionId = selectedSession || sessionIdParam || activeSession?.id || null;
+
   const { leaderboard, loading: leaderboardLoading } = useStaticLeaderboard(
-    activeSession?.id || null,
+    displaySessionId,
     false // Show all scores (including drafts) since referee controls display
   );
   const { standings, loading: standingsLoading } = useStaticTeamStandings(
-    activeSession?.id || null,
+    displaySessionId,
     false // Show all scores (including drafts) since referee controls display
   );
 
@@ -68,7 +79,58 @@ export default function DisplayPage() {
     teamComparisons,
     loading: comparisonLoading,
     hasPreviousWeek
-  } = useStaticWeekComparison(activeSession?.id || null);
+  } = useStaticWeekComparison(displaySessionId);
+
+  // Load the current session data when sessionId changes
+  useEffect(() => {
+    const loadSession = async () => {
+      if (sessionIdParam && sessionIdParam !== activeSession?.id) {
+        const session = await sessionService.getById(sessionIdParam);
+        setCurrentSession(session);
+        setSelectedSession(sessionIdParam);
+
+        if (session) {
+          const scores = await scoreService.getBySession(sessionIdParam);
+          const userIds = scores.map(s => s.userId);
+          shownUsersStore.setShownUsers(userIds);
+        }
+      } else if (selectedSession && selectedSession !== activeSession?.id) {
+        const session = await sessionService.getById(selectedSession);
+        setCurrentSession(session);
+
+        if (session) {
+          const scores = await scoreService.getBySession(selectedSession);
+          const userIds = scores.map(s => s.userId);
+          shownUsersStore.setShownUsers(userIds);
+        }
+      } else if (selectedSession === activeSession?.id) {
+        setCurrentSession(activeSession);
+
+        if (selectedSession) {
+          const scores = await scoreService.getBySession(selectedSession);
+          const userIds = scores.map(s => s.userId);
+          shownUsersStore.setShownUsers(userIds);
+        }
+      } else {
+        setCurrentSession(activeSession);
+      }
+    };
+
+    loadSession();
+  }, [sessionIdParam, selectedSession, activeSession]);
+
+  const handleSessionChange = (sessionId: string) => {
+    setSelectedSession(sessionId);
+    setShowSessionDropdown(false);
+    // Update URL without page reload
+    const url = new URL(window.location.href);
+    if (sessionId === activeSession?.id) {
+      url.searchParams.delete('sessionId');
+    } else {
+      url.searchParams.set('sessionId', sessionId);
+    }
+    window.history.pushState({}, '', url);
+  };
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [recentlyUpdated, setRecentlyUpdated] = useState<Set<string>>(new Set());
@@ -480,7 +542,7 @@ export default function DisplayPage() {
     );
   }
 
-  if (!activeSession) {
+  if (!currentSession) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center">
@@ -515,9 +577,38 @@ export default function DisplayPage() {
             priority
           />
           <div className="flex flex-col items-center gap-1">
-            <h1 className="text-3xl font-bold">
-              {activeSession.name || `Week ${activeSession.weekNumber}`}
-            </h1>
+            <div className="relative">
+              <button
+                onClick={() => setShowSessionDropdown(!showSessionDropdown)}
+                className="flex items-center gap-2 text-3xl font-bold hover:text-blue-200 transition-colors"
+              >
+                {currentSession?.name || `Week ${currentSession?.weekNumber}`}
+                <ChevronDown size={24} className="text-white/70" />
+              </button>
+              {showSessionDropdown && allSessions.length > 0 && (
+                <div className="absolute top-full mt-2 bg-white text-gray-900 rounded-lg shadow-xl z-50 min-w-[250px] max-h-96 overflow-y-auto">
+                  <div className="p-2">
+                    {allSessions
+                      .filter((session) => !session.isArchived)
+                      .sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0))
+                      .map((session) => (
+                        <button
+                          key={session.id}
+                          onClick={() => handleSessionChange(session.id!)}
+                          className={`w-full text-left px-4 py-2 rounded hover:bg-blue-50 transition-colors ${
+                            displaySessionId === session.id ? 'bg-blue-100 font-semibold' : ''
+                          }`}
+                        >
+                          <div className="font-medium">{session.name || `Week ${session.weekNumber}`}</div>
+                          <div className="text-sm text-gray-500">
+                            {session.date && new Date(session.date.seconds * 1000).toLocaleDateString()}
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               {lastUpdateTime && (
                 <motion.div
@@ -531,13 +622,22 @@ export default function DisplayPage() {
               )}
             </div>
           </div>
-          <button
-            onClick={() => router.push('/display/season')}
-            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-sm flex items-center gap-1"
-          >
-            <Trophy size={16} />
-            <span>Season</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => router.push('/display/season')}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-sm flex items-center gap-1"
+            >
+              <Trophy size={16} />
+              <span>Season</span>
+            </button>
+            <button
+              onClick={() => router.push('/display/stats')}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-sm flex items-center gap-1"
+            >
+              <Trophy size={16} />
+              <span>Stats</span>
+            </button>
+          </div>
         </div>
 
         {/* Main Content - Single row with 2 columns */}
@@ -588,23 +688,37 @@ export default function DisplayPage() {
                   {/* Colored bar at top */}
                   <div className="h-3" style={{ backgroundColor: team.team.color || '#3B82F6' }} />
 
-                  <div className="p-3 flex flex-col gap-2">
-                    {/* Main content row */}
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className={`text-3xl font-bold ${
-                          index === 0 ? 'text-yellow-400' : 'text-white'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <div>
-                              <h3 className="text-2xl font-semibold text-white">{team.team.name}</h3>
-                              <p className="text-sm text-white/80">
-                                {team.members.length} {team.members.length === 1 ? 'member' : 'members'} shown
-                              </p>
-                            </div>
+                  <div className="flex items-stretch">
+                    {/* Team logo - full height */}
+                    {team.team.logoUrl && (
+                      <div className="flex-shrink-0">
+                        <img
+                          src={team.team.logoUrl}
+                          alt={`${team.team.name} logo`}
+                          className="h-full w-24 object-cover"
+                        />
+                      </div>
+                    )}
+
+                    <div className="p-3 flex flex-col gap-2 flex-1">
+                      {/* Main content row */}
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-2xl font-semibold text-white">{team.team.name}</h3>
+                                  <span className={`text-lg font-bold ${
+                                    index === 0 ? 'text-yellow-400' : 'text-white/60'
+                                  }`}>
+                                    #{index + 1}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-white/80">
+                                  {team.members.length} {team.members.length === 1 ? 'member' : 'members'} shown
+                                </p>
+                              </div>
                             {/* Bonus cards inline */}
                             {(team.bonusPoints || 0) > 0 && team.bonusCategories && team.bonusCategories.length > 0 && (
                               <div className="flex flex-wrap gap-2">
@@ -642,24 +756,25 @@ export default function DisplayPage() {
                                 })}
                               </div>
                             )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <motion.div
-                          key={team.weeklyPoints + (team.bonusPoints || 0)}
-                          initial={{ scale: 1.5, color: '#10b981' }}
-                          animate={{ scale: 1, color: '#ffffff' }}
-                          transition={{ duration: 0.5 }}
-                          className="flex flex-col items-end"
-                        >
-                          <div className="inline-flex flex-col items-center">
-                            <span className="text-4xl font-bold text-white">
-                              {team.weeklyPoints + (team.bonusPoints || 0)}
-                            </span>
-                            <span className="text-sm text-white/80">points</span>
-                          </div>
-                        </motion.div>
+                        <div className="text-right">
+                          <motion.div
+                            key={team.weeklyPoints + (team.bonusPoints || 0)}
+                            initial={{ scale: 1.5, color: '#10b981' }}
+                            animate={{ scale: 1, color: '#ffffff' }}
+                            transition={{ duration: 0.5 }}
+                            className="flex flex-col items-end"
+                          >
+                            <div className="inline-flex flex-col items-center">
+                              <span className="text-4xl font-bold text-white">
+                                {team.weeklyPoints + (team.bonusPoints || 0)}
+                              </span>
+                              <span className="text-sm text-white/80">points</span>
+                            </div>
+                          </motion.div>
+                        </div>
                       </div>
                     </div>
                   </div>

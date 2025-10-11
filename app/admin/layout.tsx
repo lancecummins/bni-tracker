@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -33,11 +33,32 @@ const navItems = [
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user: currentUser, logout } = useAuth();
+  const { user: currentUser, logout, loading: authLoading } = useAuth();
   const { users } = useUsers();
   const [loggingOut, setLoggingOut] = useState(false);
 
   const userRecord = users.find(u => u.email === currentUser?.email);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      router.push('/login');
+    }
+  }, [currentUser, authLoading, router]);
+
+  // Show loading spinner while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Don't render anything if user is not authenticated (will redirect)
+  if (!currentUser) {
+    return null;
+  }
 
   const handleLogout = async () => {
     setLoggingOut(true);

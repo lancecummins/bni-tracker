@@ -1,57 +1,94 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '@/lib/firebase/hooks/useAuth';
-import { useStaticActiveSession, useStaticUsers, useStaticTeams, useStaticSettings } from '@/lib/firebase/hooks/useStaticData';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 import { scoreService } from '@/lib/firebase/services';
-import { ScoreMetrics, Score } from '@/lib/types';
+import { ScoreMetrics, Score, Team, User, Session, Settings } from '@/lib/types';
 import { Save, AlertCircle, CheckCircle, Trophy, Zap, Users } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { Avatar } from '@/components/Avatar';
 
-export default function AdminScoringPage() {
-  const { user: currentUser } = useAuth();
-  const { session: activeSession } = useStaticActiveSession();
-  const { users } = useStaticUsers();
-  const { teams } = useStaticTeams();
+interface PageProps {
+  params: { slug: string };
+}
+
+export default function SlugScoringPage({ params }: PageProps) {
+  const { slug } = params;
+
+  const [team, setTeam] = useState<Team | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [scores, setScores] = useState<Score[]>([]);
-  const { settings } = useStaticSettings();
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [editedScores, setEditedScores] = useState<Record<string, ScoreMetrics>>({});
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'table' | 'cards'>('cards');
   const [savingUsers, setSavingUsers] = useState<Record<string, boolean>>({});
   const [savedUsers, setSavedUsers] = useState<Record<string, boolean>>({});
 
-  // Find the selected team (admin can choose any team)
-  const selectedTeam = teams.find(t => t.id === selectedTeamId) || teams[0];
-
   // Use useMemo to prevent recreating teamMembers array on every render
   const teamMembers = useMemo(() => {
-    return users.filter(u => u.teamId === selectedTeam?.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
-  }, [users, selectedTeam?.id]);
+    return users.filter(u => u.teamId === team?.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
+  }, [users, team?.id]);
 
-  // Set initial selected team
+  // Load all data directly from Firebase
   useEffect(() => {
-    if (teams.length > 0 && !selectedTeamId) {
-      setSelectedTeamId(teams[0].id!);
-    }
-  }, [teams, selectedTeamId]);
+    const loadData = async () => {
+      try {
+        setLoading(true);
 
-  // Initialize scores - refetch when team changes
-  useEffect(() => {
-    const fetchScores = async () => {
-      // Fetch scores when we have an active session and team
-      if (activeSession && selectedTeam?.id && users.length > 0) {
-        try {
-          // Fetch scores once (not subscribe)
-          const sessionScores = await scoreService.getBySession(activeSession.id!);
+        // Load team by slug
+        const teamsQuery = query(
+          collection(db, 'teams'),
+          where('slug', '==', slug)
+        );
+        const teamsSnapshot = await getDocs(teamsQuery);
+
+        if (teamsSnapshot.empty) {
+          console.error('No team found with slug:', slug);
+          setLoading(false);
+          return;
+        }
+
+        const teamData = { id: teamsSnapshot.docs[0].id, ...teamsSnapshot.docs[0].data() } as Team;
+        setTeam(teamData);
+
+        // Load active session
+        const sessionsQuery = query(
+          collection(db, 'sessions'),
+          where('status', '==', 'open'),
+          orderBy('createdAt', 'desc')
+        );
+        const sessionsSnapshot = await getDocs(sessionsQuery);
+        const activeSessions = sessionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Session[];
+
+        if (activeSessions.length > 0) {
+          setActiveSession(activeSessions[0]);
+        }
+
+        // Load all users
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+        setUsers(usersData);
+
+        // Load settings
+        const settingsSnapshot = await getDocs(collection(db, 'settings'));
+        if (!settingsSnapshot.empty) {
+          const settingsData = { id: settingsSnapshot.docs[0].id, ...settingsSnapshot.docs[0].data() } as Settings;
+          setSettings(settingsData);
+        }
+
+        // Load scores if we have an active session
+        if (activeSessions.length > 0) {
+          const sessionScores = await scoreService.getBySession(activeSessions[0].id!);
           setScores(sessionScores);
 
           const initial: Record<string, ScoreMetrics> = {};
-          const currentTeamMembers = users.filter(u => u.teamId === selectedTeam.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
+          const currentTeamMembers = usersData.filter(u => u.teamId === teamData.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
 
           currentTeamMembers.forEach(member => {
             const existingScore = sessionScores.find(s => s.userId === member.id);
@@ -71,14 +108,16 @@ export default function AdminScoringPage() {
             savedStatus[member.id!] = true;
           });
           setSavedUsers(savedStatus);
-        } catch (error) {
-          console.error('Error fetching scores:', error);
         }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchScores();
-  }, [activeSession?.id, selectedTeam?.id, users.length]); // Re-run when team changes
+    loadData();
+  }, [slug]);
 
   const handleMetricChange = (userId: string, metric: keyof ScoreMetrics, value: string) => {
     const numValue = parseInt(value) || 0;
@@ -95,7 +134,7 @@ export default function AdminScoringPage() {
 
   // Save individual user score
   const handleSaveUser = async (userId: string) => {
-    if (!activeSession || !selectedTeam || !currentUser) return;
+    if (!activeSession || !team) return;
 
     setSavingUsers(prev => ({ ...prev, [userId]: true }));
 
@@ -112,11 +151,11 @@ export default function AdminScoringPage() {
         userId: userId,
         sessionId: activeSession.id!,
         seasonId: activeSession.seasonId,
-        teamId: selectedTeam.id!,
+        teamId: team.id!,
         metrics,
         totalPoints: calculateTotal(metrics),
         isDraft: false,
-        enteredBy: currentUser.uid,
+        enteredBy: 'team-scoring', // Since no authentication, use generic identifier
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -209,58 +248,21 @@ export default function AdminScoringPage() {
     };
   };
 
-  const handleSave = async () => {
-    if (!activeSession || !selectedTeam || !currentUser) return;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
-    setSaving(true);
-    setSaveMessage(null);
-
-    try {
-      const promises = teamMembers.map(async (member) => {
-        if (!member.id) return;
-
-        const metrics = editedScores[member.id] || {
-          attendance: 0,
-          one21s: 0,
-          referrals: 0,
-          tyfcb: 0,
-          visitors: 0,
-        };
-
-        const score = {
-          userId: member.id,
-          sessionId: activeSession.id!,
-          seasonId: activeSession.seasonId,
-          teamId: selectedTeam.id!,
-          metrics,
-          totalPoints: calculateTotal(metrics),
-          isDraft: false, // Scores are live immediately
-          enteredBy: currentUser.uid,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        };
-
-        return scoreService.upsert(score);
-      });
-
-      await Promise.all(promises);
-      setSaveMessage({ type: 'success', text: 'All scores saved successfully!' });
-      setTimeout(() => setSaveMessage(null), 3000);
-    } catch (error) {
-      console.error('Error saving scores:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to save scores. Please try again.' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!selectedTeam) {
+  if (!team) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-semibold">No Team Available</h2>
-          <p className="text-gray-600 mt-2">No teams have been created yet. Please create a team first.</p>
+          <h2 className="text-xl font-semibold">Team Not Found</h2>
+          <p className="text-gray-600 mt-2">No team found with slug: {slug}</p>
         </div>
       </div>
     );
@@ -272,7 +274,7 @@ export default function AdminScoringPage() {
         <div className="text-center">
           <AlertCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
           <h2 className="text-xl font-semibold">No Active Session</h2>
-          <p className="text-gray-600 mt-2">Please start a scoring session from the dashboard.</p>
+          <p className="text-gray-600 mt-2">Please wait for an admin to start a scoring session.</p>
         </div>
       </div>
     );
@@ -287,7 +289,7 @@ export default function AdminScoringPage() {
         <div className="bg-white shadow-sm p-3 md:p-6 md:rounded-lg md:mx-4 md:mt-8 mb-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Live Scoring</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Team Scoring</h1>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-sm text-gray-600">Week {activeSession.weekNumber}</span>
                 <span className="text-sm text-gray-400">•</span>
@@ -296,26 +298,11 @@ export default function AdminScoringPage() {
             </div>
 
             <div className="flex flex-col md:flex-row items-end md:items-center gap-2">
-              {teams.length > 1 && (
-                <select
-                  value={selectedTeamId || ''}
-                  onChange={(e) => setSelectedTeamId(e.target.value)}
-                  className="text-sm md:text-base border-2 rounded-lg px-3 py-1.5 font-semibold"
-                  style={{ borderColor: selectedTeam?.color, color: selectedTeam?.color }}
-                >
-                  {teams.map(team => (
-                    <option key={team.id} value={team.id}>
-                      {team.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-
               <div
                 className="inline-block px-4 py-1.5 rounded-full text-sm md:text-base font-semibold text-white"
-                style={{ backgroundColor: selectedTeam?.color }}
+                style={{ backgroundColor: team?.color }}
               >
-                {selectedTeam?.name}
+                {team?.name}
               </div>
             </div>
           </div>
@@ -759,7 +746,6 @@ export default function AdminScoringPage() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

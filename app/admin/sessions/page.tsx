@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { sessionService, scoreService } from '@/lib/firebase/services';
 import { Session, Score } from '@/lib/types';
-import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff, Monitor } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 type SortBy = 'date' | 'week' | 'status' | 'points';
@@ -385,6 +385,17 @@ export default function SessionsPage() {
                             >
                               <Archive size={18} />
                               {session.isArchived ? 'Unarchive' : 'Archive'}
+                            </button>
+
+                            <button
+                              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(`/display?sessionId=${session.id}`, '_blank');
+                              }}
+                            >
+                              <Monitor size={18} />
+                              View Display
                             </button>
 
                             <button
