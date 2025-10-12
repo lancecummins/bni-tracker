@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/firebase/hooks/useAuth';
 import { useUsers } from '@/lib/firebase/hooks/useUsers';
+import Image from 'next/image';
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -75,9 +76,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         {/* Sidebar */}
         <nav className="w-64 bg-white shadow-lg min-h-screen flex flex-col">
           <div className="p-6 border-b">
-            <h1 className="text-xl font-bold text-gray-800">BNI Admin</h1>
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/bni-game-logo.png"
+                alt="BNI Competition Tracker"
+                width={180}
+                height={60}
+                className="object-contain"
+                priority
+              />
+            </div>
             {userRecord && (
-              <div className="mt-2">
+              <div className="mt-2 text-center">
                 <p className="text-sm text-gray-600">{userRecord.firstName} {userRecord.lastName}</p>
                 <p className="text-xs text-gray-500">{userRecord.email}</p>
               </div>
