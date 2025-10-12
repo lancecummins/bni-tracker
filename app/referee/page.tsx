@@ -10,9 +10,11 @@ import { useSettings } from '@/lib/firebase/hooks/useSettings';
 import { User, Team, Score, Session } from '@/lib/types';
 import { Monitor, Play, Users as UsersIcon, Trophy, Eye, Check, CheckCircle, Gift, BarChart3 } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { shownUsersStore } from '@/lib/utils/revealedUsersStore';
 import { revealedBonusesStore } from '@/lib/utils/revealedBonusesStore';
+import { displayChannel } from '@/lib/utils/displayChannel';
 
 export default function RefereePage() {
   const { users } = useUsers();
@@ -54,7 +56,9 @@ export default function RefereePage() {
   const [shownUserIds, setShownUserIds] = useState<Set<string>>(new Set());
   const [revealedBonusTeamIds, setRevealedBonusTeamIds] = useState<Set<string>>(new Set());
   const [filterMode, setFilterMode] = useState<'all' | 'shown' | 'not-shown' | 'no-score'>('all');
-  const [sortMode, setSortMode] = useState<'team' | 'name' | 'points'>('team');
+  const [sortMode, setSortMode] = useState<'team' | 'name' | 'points' | 'random'>('team');
+  const [randomOrder, setRandomOrder] = useState<string[]>([]);
+  const [currentUserIndex, setCurrentUserIndex] = useState<number>(0);
 
   // Helper function to get localStorage key for shown users
   const getShownUsersKey = (sessionId: string) => `referee_shown_users_${sessionId}`;
@@ -136,9 +140,68 @@ export default function RefereePage() {
     return fullName.includes(searchTerm.toLowerCase()) || teamName.includes(searchTerm.toLowerCase());
   });
 
+  // Generate round-robin random order when switching to random mode
+  useEffect(() => {
+    if (sortMode === 'random' && randomOrder.length === 0) {
+      // Group users by team
+      const usersByTeam = new Map<string, User[]>();
+      searchFiltered.forEach(user => {
+        const teamId = user.teamId || 'no-team';
+        if (!usersByTeam.has(teamId)) {
+          usersByTeam.set(teamId, []);
+        }
+        usersByTeam.get(teamId)!.push(user);
+      });
+
+      // Randomize order within each team
+      usersByTeam.forEach((members, teamId) => {
+        usersByTeam.set(teamId, members.sort(() => Math.random() - 0.5));
+      });
+
+      // Round-robin through teams
+      const roundRobinOrder: string[] = [];
+      const teamIds = Array.from(usersByTeam.keys());
+      let hasMore = true;
+      let index = 0;
+
+      while (hasMore) {
+        hasMore = false;
+        for (const teamId of teamIds) {
+          const members = usersByTeam.get(teamId)!;
+          if (index < members.length) {
+            roundRobinOrder.push(members[index].id!);
+            hasMore = true;
+          }
+        }
+        index++;
+      }
+
+      setRandomOrder(roundRobinOrder);
+    }
+  }, [sortMode, searchFiltered, randomOrder.length]);
+
+  // Helper function to get user score
+  const getUserScore = (userId: string) => {
+    const score = scores.find(s => s.userId === userId);
+    if (!score || !settings) return 0;
+
+    const total = (
+      ((score.metrics.attendance || 0) * (settings.pointValues.attendance || 0)) +
+      ((score.metrics.one21s || 0) * (settings.pointValues.one21s || 0)) +
+      ((score.metrics.referrals || 0) * (settings.pointValues.referrals || 0)) +
+      ((score.metrics.tyfcb || 0) * (settings.pointValues.tyfcb || 0)) +
+      ((score.metrics.visitors || 0) * (settings.pointValues.visitors || 0))
+    );
+    return total;
+  };
+
   // Apply sorting
   const filteredMembers = searchFiltered.sort((a, b) => {
     switch (sortMode) {
+      case 'random':
+        const aIndex = randomOrder.indexOf(a.id!);
+        const bIndex = randomOrder.indexOf(b.id!);
+        return aIndex - bIndex;
       case 'name':
         return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
       case 'points':
@@ -155,28 +218,46 @@ export default function RefereePage() {
     }
   });
 
-  const handleDisplayUser = async (user: User) => {
+  const nextUser = currentUserIndex < filteredMembers.length - 1 ? filteredMembers[currentUserIndex + 1] : null;
+
+  const handleDisplayUser = async (user: User, userIndex?: number) => {
     console.log('handleDisplayUser called with:', user.firstName, user.lastName);
     setSelectedUser(user);
     setDisplayMode('user');
+
+    if (userIndex !== undefined) {
+      setCurrentUserIndex(userIndex);
+    }
 
     // Mark user as shown
     if (user.id) {
       shownUsersStore.showUser(user.id);
     }
 
+    // Calculate next user
+    const actualIndex = userIndex !== undefined ? userIndex : currentUserIndex;
+    const nextUserInList = actualIndex < filteredMembers.length - 1 ? filteredMembers[actualIndex + 1] : null;
+
     // Send to API endpoint for cross-device communication
     try {
+      const payload = {
+        type: 'DISPLAY_USER',
+        user: user,
+        team: teams.find(t => t.id === user.teamId),
+        shownUserIds: Array.from(shownUsersStore.getShownUsers()),
+        nextUser: nextUserInList,
+        nextUserTeam: nextUserInList ? teams.find(t => t.id === nextUserInList.teamId) : null
+      };
+
+      // Send via API (for SSE broadcast)
       const response = await fetch('/api/display', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'DISPLAY_USER',
-          user: user,
-          team: teams.find(t => t.id === user.teamId),
-          shownUserIds: Array.from(shownUsersStore.getShownUsers())
-        })
+        body: JSON.stringify(payload)
       });
+
+      // Also send via broadcast channel (for same-browser tabs)
+      displayChannel.send(payload);
 
       if (response.ok) {
         toast.success('Displaying user on screen');
@@ -188,10 +269,14 @@ export default function RefereePage() {
     }
   };
 
-  const handleDisplayStats = async (user: User) => {
+  const handleDisplayStats = async (user: User, userIndex?: number) => {
     console.log('handleDisplayStats called for:', user.firstName, user.lastName);
     setSelectedUser(user);
     setDisplayMode('stats');
+
+    if (userIndex !== undefined) {
+      setCurrentUserIndex(userIndex);
+    }
 
     const score = scores.find(s => s.userId === user.id);
     const userSettings = settings;
@@ -201,20 +286,32 @@ export default function RefereePage() {
       shownUsersStore.showUser(user.id);
     }
 
+    // Calculate next user
+    const actualIndex = userIndex !== undefined ? userIndex : currentUserIndex;
+    const nextUserInList = actualIndex < filteredMembers.length - 1 ? filteredMembers[actualIndex + 1] : null;
+
     // Send stats to display
     try {
+      const payload = {
+        type: 'DISPLAY_STATS',
+        user: user,
+        team: teams.find(t => t.id === user.teamId),
+        score: score,
+        settings: userSettings,
+        shownUserIds: Array.from(shownUsersStore.getShownUsers()),
+        nextUser: nextUserInList,
+        nextUserTeam: nextUserInList ? teams.find(t => t.id === nextUserInList.teamId) : null
+      };
+
+      // Send via API (for SSE broadcast)
       await fetch('/api/display', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'DISPLAY_STATS',
-          user: user,
-          team: teams.find(t => t.id === user.teamId),
-          score: score,
-          settings: userSettings,
-          shownUserIds: Array.from(shownUsersStore.getShownUsers())
-        })
+        body: JSON.stringify(payload)
       });
+
+      // Also send via broadcast channel (for same-browser tabs)
+      displayChannel.send(payload);
 
       toast.success('Displaying stats animation');
     } catch (error) {
@@ -399,21 +496,6 @@ export default function RefereePage() {
     window.open('/display', 'display', 'width=1920,height=1080');
   };
 
-  const getUserScore = (userId: string) => {
-    const score = scores.find(s => s.userId === userId);
-    if (!score || !settings) return 0;
-
-    const total = (
-      ((score.metrics.attendance || 0) * (settings.pointValues.attendance || 0)) +
-      ((score.metrics.one21s || 0) * (settings.pointValues.one21s || 0)) +
-      ((score.metrics.referrals || 0) * (settings.pointValues.referrals || 0)) +
-      ((score.metrics.tyfcb || 0) * (settings.pointValues.tyfcb || 0)) +
-      ((score.metrics.visitors || 0) * (settings.pointValues.visitors || 0))
-    );
-
-    return isNaN(total) ? 0 : total;
-  };
-
   const getScoreStatus = (userId: string) => {
     const score = scores.find(s => s.userId === userId);
     if (!score) return 'missing';
@@ -440,12 +522,24 @@ export default function RefereePage() {
         <div className="p-4">
           {/* Title and Status */}
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Game Referee</h1>
-              <p className="text-sm text-gray-600">
-                {selectedSession ? `Week ${selectedSession.weekNumber} • ` : ''}
-                {shownUserIds.size}/{filteredMembers.length} shown
-              </p>
+            <div className="flex items-center gap-3">
+              <Image
+                src="/bni-game-logo.png"
+                alt="BNI Game"
+                width={60}
+                height={60}
+                className="object-contain"
+                priority
+              />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">
+                  {selectedSession?.name || 'Game Referee'}
+                </h1>
+                <p className="text-sm text-gray-600">
+                  {selectedSession ? `${new Date(selectedSession.date.seconds * 1000).toLocaleDateString()} • ` : ''}
+                  {shownUserIds.size}/{filteredMembers.length} shown
+                </p>
+              </div>
             </div>
             <button
               onClick={openDisplayWindow}
@@ -464,9 +558,9 @@ export default function RefereePage() {
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-base"
             >
               <option value="">Select a Session</option>
-              {allSessions.map((session) => (
+              {allSessions.filter(session => !session.isArchived).map((session) => (
                 <option key={session.id} value={session.id}>
-                  Week {session.weekNumber} - {new Date(session.date.seconds * 1000).toLocaleDateString()}
+                  {session.name || `Week ${session.weekNumber}`} - {new Date(session.date.seconds * 1000).toLocaleDateString()}
                   {session.status === 'open' ? ' (Active)' : ''}
                 </option>
               ))}
@@ -511,6 +605,7 @@ export default function RefereePage() {
               <option value="team">Sort by Team</option>
               <option value="name">Sort by Name</option>
               <option value="points">Sort by Points</option>
+              <option value="random">Sort by Random</option>
             </select>
           </div>
 
@@ -540,16 +635,18 @@ export default function RefereePage() {
       </div>
 
       {/* Member List */}
-      <div className="p-4 max-w-4xl mx-auto">
-        {teams.map(team => {
-          const teamMembers = filteredMembers.filter(m => m.teamId === team.id);
-          if (teamMembers.length === 0) return null;
+      <div className="p-4 max-w-4xl mx-auto pb-32">
+        {sortMode === 'team' ? (
+          // Group by team
+          teams.map(team => {
+            const teamMembers = filteredMembers.filter(m => m.teamId === team.id);
+            if (teamMembers.length === 0) return null;
 
-          const bonuses = getTeamBonuses(team.id!);
-          const isRevealed = team.id && revealedBonusTeamIds.has(team.id);
+            const bonuses = getTeamBonuses(team.id!);
+            const isRevealed = team.id && revealedBonusTeamIds.has(team.id);
 
-          return (
-            <div key={team.id} className="mb-6">
+            return (
+              <div key={team.id} className="mb-6">
               {/* Team Header */}
               <div className="mb-2">
                 <div
@@ -654,14 +751,14 @@ export default function RefereePage() {
                       {/* Action Buttons Row */}
                       <div className="grid grid-cols-2 gap-2">
                         <button
-                          onClick={() => handleDisplayUser(member)}
+                          onClick={() => handleDisplayUser(member, teamMembers.indexOf(member))}
                           className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
                         >
                           <Eye size={16} />
                           Show User
                         </button>
                         <button
-                          onClick={() => handleDisplayStats(member)}
+                          onClick={() => handleDisplayStats(member, teamMembers.indexOf(member))}
                           disabled={scoreStatus === 'missing'}
                           className="flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
                         >
@@ -675,7 +772,94 @@ export default function RefereePage() {
               </div>
             </div>
           );
-        })}
+        })
+        ) : (
+          // Flat list for other sort modes
+          <div className="space-y-2">
+            {filteredMembers.map((member, index) => {
+              const scoreStatus = getScoreStatus(member.id!);
+              const totalPoints = getUserScore(member.id!);
+              const isShown = member.id && shownUserIds.has(member.id);
+              const memberTeam = teams.find(t => t.id === member.teamId);
+
+              return (
+                <div
+                  key={member.id}
+                  className={`bg-white rounded-lg border-2 p-3 ${
+                    isShown ? 'border-green-400 bg-green-50' : 'border-gray-200'
+                  }`}
+                >
+                  {/* User Info Row */}
+                  <div className="flex items-center gap-3 mb-3">
+                    {isShown ? (
+                      <CheckCircle className="text-green-600 flex-shrink-0" size={20} />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                    )}
+
+                    <Avatar
+                      src={member.avatarUrl}
+                      fallbackSeed={`${member.firstName}${member.lastName}`}
+                      size="sm"
+                    />
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm truncate">
+                          {member.firstName} {member.lastName}
+                        </p>
+                        {isShown && (
+                          <span className="text-xs text-green-600 font-medium flex-shrink-0">SHOWN</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        {memberTeam && (
+                          <span
+                            className="px-1.5 py-0.5 rounded font-medium"
+                            style={{ backgroundColor: memberTeam.color + '20', color: memberTeam.color }}
+                          >
+                            {memberTeam.name}
+                          </span>
+                        )}
+                        <span className={`px-1.5 py-0.5 rounded ${
+                          scoreStatus === 'published' ? 'bg-green-100 text-green-700' :
+                          scoreStatus === 'draft' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {scoreStatus === 'published' ? 'Ready' :
+                           scoreStatus === 'draft' ? 'Draft' :
+                           'No Score'}
+                        </span>
+                        {scoreStatus !== 'missing' && (
+                          <span className="text-gray-600 font-semibold">{totalPoints} pts</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons Row */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleDisplayUser(member, index)}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                    >
+                      <Eye size={16} />
+                      Show User
+                    </button>
+                    <button
+                      onClick={() => handleDisplayStats(member, index)}
+                      disabled={scoreStatus === 'missing'}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
+                    >
+                      <Play size={16} />
+                      Display Stats
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {filteredMembers.length === 0 && (
           <div className="text-center py-8 text-gray-500">
@@ -683,6 +867,7 @@ export default function RefereePage() {
           </div>
         )}
       </div>
+
     </div>
   );
 }

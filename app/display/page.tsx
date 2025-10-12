@@ -41,6 +41,9 @@ interface DisplayData {
   teamColor?: string;
   bonusTotal?: number;
   bonusCategories?: string[];
+  // For on-deck indicator
+  nextUser?: User;
+  nextUserTeam?: Team;
 }
 
 function DisplayPageContent() {
@@ -140,6 +143,10 @@ function DisplayPageContent() {
 
   // Referee display state
   const [displayData, setDisplayData] = useState<DisplayData | null>(null);
+  const [nextUser, setNextUser] = useState<User | null>(null);
+  const [nextUserTeam, setNextUserTeam] = useState<Team | null>(null);
+  const [themeAudio, setThemeAudio] = useState<HTMLAudioElement | null>(null);
+
 
   // Listen for referee messages from multiple sources
   useEffect(() => {
@@ -169,6 +176,15 @@ function DisplayPageContent() {
           revealedBonusesStore.setRevealedTeams(data.revealedBonusTeamIds);
         }
 
+        // Update next user info if present
+        if (data.nextUser) {
+          setNextUser(data.nextUser);
+          setNextUserTeam(data.nextUserTeam || null);
+        } else if (data.type === 'CLEAR_DISPLAY') {
+          setNextUser(null);
+          setNextUserTeam(null);
+        }
+
         // Handle team bonus display
         if (data.type === 'DISPLAY_TEAM_BONUS') {
           setDisplayData(data);
@@ -178,6 +194,8 @@ function DisplayPageContent() {
           }, 5000);
         } else if (data.type === 'CLEAR_DISPLAY') {
           setDisplayData(null); // Clear display to show default
+          setNextUser(null);
+          setNextUserTeam(null);
         } else if (data.type) {
           setDisplayData(data);
         }
@@ -193,8 +211,16 @@ function DisplayPageContent() {
 
     // 2. Broadcast channel for same-browser communication (fallback)
     displayChannel.onMessage((data) => {
+      // Update next user info if present
+      if (data.nextUser) {
+        setNextUser(data.nextUser);
+        setNextUserTeam(data.nextUserTeam || null);
+      }
+
       if (data.type === 'CLEAR_DISPLAY') {
         setDisplayData(null);
+        setNextUser(null);
+        setNextUserTeam(null);
       } else if (data.type) {
         setDisplayData(data);
       }
@@ -287,6 +313,33 @@ function DisplayPageContent() {
 
     prevStandingsRef.current = standings;
   }, [standings, showConfetti]);
+
+  // Play/pause theme music based on displayData state
+  useEffect(() => {
+    if (displayData) {
+      if (themeAudio) {
+        themeAudio.pause();
+      }
+    } else {
+      if (!themeAudio) {
+        const audio = new Audio('/sounds/bni-game-theme.mp3');
+        audio.volume = 0.3;
+        audio.loop = true;
+        audio.play().catch(err => console.log('Audio play failed:', err));
+        setThemeAudio(audio);
+      } else {
+        themeAudio.play().catch(err => console.log('Audio play failed:', err));
+      }
+    }
+  }, [displayData]);
+
+  useEffect(() => {
+    return () => {
+      if (themeAudio) {
+        themeAudio.pause();
+      }
+    };
+  }, [themeAudio]);
 
   // If referee has sent display data, show that instead
   if (displayData) {
@@ -394,6 +447,11 @@ function DisplayPageContent() {
               stiffness: 100,
               damping: 20,
               duration: 1
+            }}
+            onAnimationStart={() => {
+              const audio = new Audio('/sounds/celebrate-winner.mp3');
+              audio.volume = 0.6;
+              audio.play().catch(err => console.log('Audio play failed:', err));
             }}
             className="text-center max-w-6xl mx-auto p-8 z-10"
           >
@@ -952,6 +1010,32 @@ function DisplayPageContent() {
         </div>
 
       </div>
+
+      {/* On-Deck Indicator */}
+      {nextUser && (
+        <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-2xl border-4 border-blue-500 p-4 max-w-xs z-[9999]">
+          <div className="text-xs font-bold text-blue-600 mb-2 text-center uppercase tracking-wide">On Deck</div>
+          <div className="flex items-center gap-3">
+            <Avatar src={nextUser.avatarUrl} size="md" />
+            <div>
+              <p className="font-bold text-gray-900 text-lg">
+                {nextUser.firstName} {nextUser.lastName}
+              </p>
+              {nextUserTeam && (
+                <p
+                  className="text-sm font-semibold px-2 py-0.5 rounded inline-block"
+                  style={{
+                    backgroundColor: nextUserTeam.color + '20',
+                    color: nextUserTeam.color
+                  }}
+                >
+                  {nextUserTeam.name}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

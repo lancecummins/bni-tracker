@@ -25,6 +25,9 @@ interface DisplayData {
   bonusCategories?: string[];
   // For celebration
   winningTeam?: any;
+  // For on-deck indicator
+  nextUser?: User;
+  nextUserTeam?: Team;
 }
 
 export default function RefereeDisplayPage({ initialData }: { initialData?: DisplayData }) {
@@ -39,10 +42,21 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
     visitors: false,
     total: false
   });
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
 
   // Update animation state when displayData changes
   useEffect(() => {
     if (displayData?.type === 'DISPLAY_STATS') {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+
+      const showUserAudio = new Audio('/sounds/show-user.mp3');
+      showUserAudio.volume = 0.5;
+      showUserAudio.play().catch(err => console.log('Audio play failed:', err));
+      setCurrentAudio(showUserAudio);
+
       // Start animation sequence
       setAnimatingStats(true);
       setRevealedStats({
@@ -54,21 +68,43 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
         total: false
       });
 
-      // Reveal each stat with delay
-      const delays = {
-        attendance: 500,
-        one21s: 1000,
-        referrals: 1500,
-        tyfcb: 2000,
-        visitors: 2500,
-        total: 3000
+      const metrics = displayData.score?.metrics || {
+        attendance: 0,
+        one21s: 0,
+        referrals: 0,
+        tyfcb: 0,
+        visitors: 0
       };
 
-      Object.entries(delays).forEach(([key, delay]) => {
+      const categories = [
+        { key: 'attendance', hasData: (metrics.attendance || 0) > 0 },
+        { key: 'one21s', hasData: (metrics.one21s || 0) > 0 },
+        { key: 'referrals', hasData: (metrics.referrals || 0) > 0 },
+        { key: 'tyfcb', hasData: (metrics.tyfcb || 0) > 0 },
+        { key: 'visitors', hasData: (metrics.visitors || 0) > 0 }
+      ];
+
+      const categoriesWithData = categories.filter(cat => cat.hasData);
+
+      let currentDelay = 2000;
+      categoriesWithData.forEach((category, index) => {
         setTimeout(() => {
-          setRevealedStats(prev => ({ ...prev, [key]: true }));
-        }, delay);
+          setRevealedStats(prev => ({ ...prev, [category.key]: true }));
+
+          const audio = new Audio('/sounds/stat-reveal.mp3');
+          audio.volume = 0.5;
+          audio.play().catch(err => console.log('Audio play failed:', err));
+        }, currentDelay);
+        currentDelay += 2000;
       });
+
+      setTimeout(() => {
+        setRevealedStats(prev => ({ ...prev, total: true }));
+
+        const audio = new Audio('/sounds/total-reveal.mp3');
+        audio.volume = 0.6;
+        audio.play().catch(err => console.log('Audio play failed:', err));
+      }, currentDelay);
     }
   }, [displayData]);
 
@@ -139,6 +175,32 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
             </motion.div>
           </div>
         </motion.div>
+
+        {/* On-Deck Indicator */}
+        {displayData?.nextUser && (
+          <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-2xl border-4 border-blue-500 p-4 max-w-xs z-[9999]">
+            <div className="text-xs font-bold text-blue-600 mb-2 text-center uppercase tracking-wide">On Deck</div>
+            <div className="flex items-center gap-3">
+              <Avatar src={displayData.nextUser.avatarUrl} size="md" />
+              <div>
+                <p className="font-bold text-gray-900 text-lg">
+                  {displayData.nextUser.firstName} {displayData.nextUser.lastName}
+                </p>
+                {displayData.nextUserTeam && (
+                  <p
+                    className="text-sm font-semibold px-2 py-0.5 rounded inline-block"
+                    style={{
+                      backgroundColor: displayData.nextUserTeam.color + '20',
+                      color: displayData.nextUserTeam.color
+                    }}
+                  >
+                    {displayData.nextUserTeam.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -356,6 +418,32 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
             )}
           </AnimatePresence>
         </div>
+
+        {/* On-Deck Indicator */}
+        {displayData?.nextUser && (
+          <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-2xl border-4 border-blue-500 p-4 max-w-xs z-[9999]">
+            <div className="text-xs font-bold text-blue-600 mb-2 text-center uppercase tracking-wide">On Deck</div>
+            <div className="flex items-center gap-3">
+              <Avatar src={displayData.nextUser.avatarUrl} size="md" />
+              <div>
+                <p className="font-bold text-gray-900 text-lg">
+                  {displayData.nextUser.firstName} {displayData.nextUser.lastName}
+                </p>
+                {displayData.nextUserTeam && (
+                  <p
+                    className="text-sm font-semibold px-2 py-0.5 rounded inline-block"
+                    style={{
+                      backgroundColor: displayData.nextUserTeam.color + '20',
+                      color: displayData.nextUserTeam.color
+                    }}
+                  >
+                    {displayData.nextUserTeam.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -490,6 +578,32 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
             ))}
           </div>
         </div>
+
+        {/* On-Deck Indicator */}
+        {displayData?.nextUser && (
+          <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-2xl border-4 border-blue-500 p-4 max-w-xs z-[9999]">
+            <div className="text-xs font-bold text-blue-600 mb-2 text-center uppercase tracking-wide">On Deck</div>
+            <div className="flex items-center gap-3">
+              <Avatar src={displayData.nextUser.avatarUrl} size="md" />
+              <div>
+                <p className="font-bold text-gray-900 text-lg">
+                  {displayData.nextUser.firstName} {displayData.nextUser.lastName}
+                </p>
+                {displayData.nextUserTeam && (
+                  <p
+                    className="text-sm font-semibold px-2 py-0.5 rounded inline-block"
+                    style={{
+                      backgroundColor: displayData.nextUserTeam.color + '20',
+                      color: displayData.nextUserTeam.color
+                    }}
+                  >
+                    {displayData.nextUserTeam.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

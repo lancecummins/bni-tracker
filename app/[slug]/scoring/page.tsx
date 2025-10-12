@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, use } from 'react';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { scoreService } from '@/lib/firebase/services';
@@ -11,11 +11,11 @@ import { Avatar } from '@/components/Avatar';
 import Image from 'next/image';
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export default function SlugScoringPage({ params }: PageProps) {
-  const { slug } = params;
+  const { slug } = use(params);
 
   const [team, setTeam] = useState<Team | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -33,7 +33,9 @@ export default function SlugScoringPage({ params }: PageProps) {
 
   // Use useMemo to prevent recreating teamMembers array on every render
   const teamMembers = useMemo(() => {
-    return users.filter(u => u.teamId === team?.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
+    return users
+      .filter(u => u.teamId === team?.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive)
+      .sort((a, b) => a.firstName.localeCompare(b.firstName));
   }, [users, team?.id]);
 
   // Load all data directly from Firebase
