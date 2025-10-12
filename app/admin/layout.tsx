@@ -22,12 +22,10 @@ import { useUsers } from '@/lib/firebase/hooks/useUsers';
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/scoring', label: 'Live Scoring', icon: BarChart },
-  { href: '/admin/review', label: 'Review & Publish', icon: CheckSquare },
   { href: '/admin/sessions', label: 'Sessions', icon: Calendar },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/teams', label: 'Teams', icon: Trophy },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
-  { href: '/admin/setup', label: 'BNI Setup', icon: Upload },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
