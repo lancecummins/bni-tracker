@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/hooks/useAuth';
 import { LogIn, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,7 +35,16 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-xl p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">BNI Tracker</h1>
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/bni-game-logo.png"
+                alt="BNI Competition Tracker"
+                width={250}
+                height={84}
+                className="object-contain"
+                priority
+              />
+            </div>
             <p className="text-gray-600 mt-2">Sign in to your account</p>
           </div>
 
