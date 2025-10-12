@@ -8,6 +8,7 @@ import { ScoreMetrics, Score, Team, User, Session, Settings } from '@/lib/types'
 import { Save, AlertCircle, CheckCircle, Trophy, Zap, Users } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { Avatar } from '@/components/Avatar';
+import Image from 'next/image';
 
 interface PageProps {
   params: { slug: string };
@@ -283,26 +284,32 @@ export default function SlugScoringPage({ params }: PageProps) {
   const teamTotals = calculateTeamTotals();
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: team?.color || '#f9fafb' }}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-white shadow-sm p-3 md:p-6 md:rounded-lg md:mx-4 md:mt-8 mb-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Team Scoring</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-sm text-gray-600">Week {activeSession.weekNumber}</span>
-                <span className="text-sm text-gray-400">•</span>
-                <span className="text-sm text-gray-600">{activeSession.date.toDate().toLocaleDateString()}</span>
+            <div className="flex items-center gap-3">
+              {/* Team Logo or BNI Game Logo */}
+              <div className="flex-shrink-0">
+                <Image
+                  src={team?.logoUrl || '/bni-game-logo.png'}
+                  alt={team?.name || 'BNI Game'}
+                  width={80}
+                  height={80}
+                  className="object-contain"
+                  priority
+                />
               </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row items-end md:items-center gap-2">
-              <div
-                className="inline-block px-4 py-1.5 rounded-full text-sm md:text-base font-semibold text-white"
-                style={{ backgroundColor: team?.color }}
-              >
-                {team?.name}
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+                  {activeSession.name || `Week ${activeSession.weekNumber}`}
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm text-gray-600">{team?.name}</span>
+                  <span className="text-sm text-gray-400">•</span>
+                  <span className="text-sm text-gray-600">{activeSession.date.toDate().toLocaleDateString()}</span>
+                </div>
               </div>
             </div>
           </div>
