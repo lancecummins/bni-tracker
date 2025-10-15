@@ -451,6 +451,12 @@ export default function RefereePage() {
     // Mark as revealed
     revealedBonusesStore.revealTeamBonus(teamId);
 
+    // Build complete list of bonus categories (both built-in and custom)
+    const allBonusCategories = [
+      ...bonuses.categories,
+      ...bonuses.customBonuses.map(cb => cb.bonusName)
+    ];
+
     // Send bonus details to display
     try {
       await fetch('/api/display', {
@@ -462,7 +468,7 @@ export default function RefereePage() {
           teamName: team.name,
           teamColor: team.color,
           bonusTotal: bonuses.total,
-          bonusCategories: bonuses.categories,
+          bonusCategories: allBonusCategories,
           revealedBonusTeamIds: Array.from(revealedBonusesStore.getRevealedTeams())
         })
       });
@@ -581,28 +587,7 @@ export default function RefereePage() {
           teamCustomBonuses: arrayUnion(teamBonus)
         });
 
-        toast.success(`Awarded ${selectedBonus.name} to ${awardBonusTarget.team?.name}`);
-
-        // Send to display
-        await fetch('/api/display', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'DISPLAY_CUSTOM_BONUS',
-            bonusName: selectedBonus.name,
-            bonusPoints: selectedBonus.points,
-            targetName: awardBonusTarget.team?.name,
-            isTeamBonus: true
-          })
-        });
-
-        displayChannel.send({
-          type: 'DISPLAY_CUSTOM_BONUS',
-          bonusName: selectedBonus.name,
-          bonusPoints: selectedBonus.points,
-          targetName: awardBonusTarget.team?.name,
-          isTeamBonus: true
-        });
+        toast.success(`Awarded ${selectedBonus.name} to ${awardBonusTarget.team?.name} - Use "Display Bonus" button to show it`);
       }
 
       setShowAwardBonusModal(false);
