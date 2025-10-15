@@ -2,9 +2,12 @@
 
 import { useState } from 'react';
 import { useStaticUsers, useStaticTeams, clearStaticDataCache } from '@/lib/firebase/hooks/useStaticData';
-import { userService } from '@/lib/firebase/services';
-import { User, UserRole } from '@/lib/types';
-import { Timestamp } from 'firebase/firestore';
+import { userService, scoreService } from '@/lib/firebase/services';
+import { User, UserRole, AwardedCustomBonus } from '@/lib/types';
+import { Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { useActiveSession } from '@/lib/firebase/hooks/useSessions';
+import { useSettings } from '@/lib/firebase/hooks/useSettings';
 import toast from 'react-hot-toast';
 import {
   UserPlus,
@@ -19,12 +22,15 @@ import {
   Search,
   Upload,
   Trash2,
+  PlusCircle,
 } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 
 export default function UsersPage() {
   const { users, loading: usersLoading } = useStaticUsers();
   const { teams, loading: teamsLoading } = useStaticTeams();
+  const { session: activeSession } = useActiveSession();
+  const { settings } = useSettings();
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [userEdits, setUserEdits] = useState<Record<string, Partial<User>>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,6 +43,9 @@ export default function UsersPage() {
     role: 'member',
     isActive: true,
   });
+  const [showAddPointsModal, setShowAddPointsModal] = useState(false);
+  const [selectedUserForPoints, setSelectedUserForPoints] = useState<User | null>(null);
+  const [pointsToAdd, setPointsToAdd] = useState({ points: 0, note: '' });
 
   const loading = usersLoading || teamsLoading;
 
@@ -151,6 +160,65 @@ export default function UsersPage() {
     } catch (error) {
       console.error('Error deleting user:', error);
       toast.error('Failed to delete user');
+    }
+  };
+
+  const handleAddPoints = async () => {
+    if (!selectedUserForPoints || !activeSession || !settings) {
+      toast.error('Missing required data');
+      return;
+    }
+
+    if (pointsToAdd.points === 0) {
+      toast.error('Please enter points amount');
+      return;
+    }
+
+    if (!pointsToAdd.note.trim()) {
+      toast.error('Please enter a note');
+      return;
+    }
+
+    try {
+      const scores = await scoreService.getBySession(activeSession.id!);
+      const userScore = scores.find(s => s.userId === selectedUserForPoints.id);
+
+      if (!userScore) {
+        toast.error('No score found for this user in the active session');
+        return;
+      }
+
+      const customBonus: AwardedCustomBonus = {
+        bonusId: `manual-${Date.now()}`,
+        bonusName: pointsToAdd.note,
+        points: pointsToAdd.points,
+        awardedBy: 'admin',
+        awardedAt: Timestamp.now()
+      };
+
+      const updatedCustomBonuses = [...(userScore.customBonuses || []), customBonus];
+      const customBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
+      const metricsTotal = (
+        ((userScore.metrics.attendance || 0) * (settings.pointValues.attendance || 0)) +
+        ((userScore.metrics.one21s || 0) * (settings.pointValues.one21s || 0)) +
+        ((userScore.metrics.referrals || 0) * (settings.pointValues.referrals || 0)) +
+        ((userScore.metrics.tyfcb || 0) * (settings.pointValues.tyfcb || 0)) +
+        ((userScore.metrics.visitors || 0) * (settings.pointValues.visitors || 0))
+      );
+
+      await updateDoc(doc(db, 'scores', userScore.id!), {
+        customBonuses: updatedCustomBonuses,
+        totalPoints: metricsTotal + customBonusTotal,
+        updatedAt: Timestamp.now()
+      });
+
+      toast.success(`Added ${pointsToAdd.points} points to ${selectedUserForPoints.firstName} ${selectedUserForPoints.lastName}`);
+      setShowAddPointsModal(false);
+      setSelectedUserForPoints(null);
+      setPointsToAdd({ points: 0, note: '' });
+    } catch (error) {
+      console.error('Error adding points:', error);
+      toast.error('Failed to add points');
     }
   };
 
@@ -324,6 +392,78 @@ export default function UsersPage() {
                   role: 'member',
                   isActive: true,
                 });
+              }}
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 flex items-center gap-2"
+            >
+              <X size={18} />
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Points Modal */}
+      {showAddPointsModal && selectedUserForPoints && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">
+            Add Points to {selectedUserForPoints.firstName} {selectedUserForPoints.lastName}
+          </h3>
+
+          {!activeSession && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                ⚠️ No active session found. Please create or open a session first.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Points *
+              </label>
+              <input
+                type="number"
+                placeholder="Enter points (can be negative)"
+                value={pointsToAdd.points === 0 ? '' : pointsToAdd.points}
+                onChange={(e) => setPointsToAdd({ ...pointsToAdd, points: Number(e.target.value) })}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!activeSession}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Note/Reason *
+              </label>
+              <textarea
+                placeholder="E.g., 'Extra visitor credit', 'Manual adjustment', etc."
+                value={pointsToAdd.note}
+                onChange={(e) => setPointsToAdd({ ...pointsToAdd, note: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                disabled={!activeSession}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This note will be visible in the user's score details
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 mt-6">
+            <button
+              onClick={handleAddPoints}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              disabled={!activeSession}
+            >
+              <PlusCircle size={18} />
+              Add Points
+            </button>
+            <button
+              onClick={() => {
+                setShowAddPointsModal(false);
+                setSelectedUserForPoints(null);
+                setPointsToAdd({ points: 0, note: '' });
               }}
               className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 flex items-center gap-2"
             >
@@ -545,6 +685,16 @@ export default function UsersPage() {
                           title="Edit user"
                         >
                           <Edit2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedUserForPoints(user);
+                            setShowAddPointsModal(true);
+                          }}
+                          className="p-1 text-green-600 hover:bg-green-50 rounded"
+                          title="Add points"
+                        >
+                          <PlusCircle size={18} />
                         </button>
                         <button
                           onClick={() => handleDeleteUser(user)}

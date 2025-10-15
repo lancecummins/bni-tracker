@@ -122,7 +122,7 @@ export default function SeasonStandingsPage() {
                       <img
                         src={teamStats.team.logoUrl}
                         alt={`${teamStats.team.name} logo`}
-                        className="h-full w-32 object-cover"
+                        className="h-full w-48 object-cover"
                       />
                     </div>
                   )}
