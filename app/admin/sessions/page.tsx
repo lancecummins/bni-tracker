@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { sessionService, scoreService } from '@/lib/firebase/services';
 import { Session, Score } from '@/lib/types';
-import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff, Monitor } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff, Monitor, Edit2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 type SortBy = 'date' | 'week' | 'status' | 'points';
@@ -17,6 +17,8 @@ export default function SessionsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [editingSession, setEditingSession] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   useEffect(() => {
     loadSessions();
@@ -75,6 +77,29 @@ export default function SessionsPage() {
     } catch (error) {
       console.error('Error archiving session:', error);
       toast.error('Failed to archive session');
+    }
+  };
+
+  const handleStartEdit = (session: Session) => {
+    setEditingSession(session.id!);
+    setEditingName(session.name || `Week ${session.weekNumber}`);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSession(null);
+    setEditingName('');
+  };
+
+  const handleSaveEdit = async (sessionId: string) => {
+    try {
+      await sessionService.update(sessionId, { name: editingName });
+      toast.success('Session renamed');
+      setEditingSession(null);
+      setEditingName('');
+      loadSessions();
+    } catch (error) {
+      console.error('Error renaming session:', error);
+      toast.error('Failed to rename session');
     }
   };
 
@@ -236,10 +261,53 @@ export default function SessionsPage() {
                       >
                         <Calendar size={24} />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-semibold">
-                          {session.name || `Week ${session.weekNumber}`}
-                        </h3>
+                      <div className="flex-1">
+                        {editingSession === session.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-semibold"
+                              autoFocus
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSaveEdit(session.id!);
+                              }}
+                              className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelEdit();
+                              }}
+                              className="px-3 py-1 bg-gray-400 text-white rounded-lg hover:bg-gray-500 text-sm"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-semibold">
+                              {session.name || `Week ${session.weekNumber}`}
+                            </h3>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartEdit(session);
+                              }}
+                              className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="Rename session"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          </div>
+                        )}
                         <p className="text-gray-600">
                           {session.date &&
                             new Date(session.date.seconds * 1000).toLocaleDateString('en-US', {
@@ -371,6 +439,17 @@ export default function SessionsPage() {
                                 Close Session
                               </button>
                             ) : null}
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartEdit(session);
+                              }}
+                              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Edit2 size={18} />
+                              Rename Session
+                            </button>
 
                             <button
                               onClick={(e) => {

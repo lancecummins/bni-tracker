@@ -496,6 +496,10 @@ export default function RefereePage() {
     window.open('/display', 'display', 'width=1920,height=1080');
   };
 
+  const openLogoWindow = () => {
+    window.open('/logo', 'logo', 'width=1920,height=1080');
+  };
+
   const getScoreStatus = (userId: string) => {
     const score = scores.find(s => s.userId === userId);
     if (!score) return 'missing';
@@ -541,13 +545,22 @@ export default function RefereePage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={openDisplayWindow}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm md:text-base"
-            >
-              <Monitor size={18} />
-              <span className="hidden sm:inline">Display</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={openDisplayWindow}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm md:text-base"
+              >
+                <Monitor size={18} />
+                <span className="hidden sm:inline">Display</span>
+              </button>
+              <button
+                onClick={openLogoWindow}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm md:text-base"
+              >
+                <Trophy size={18} />
+                <span className="hidden sm:inline">Logo</span>
+              </button>
+            </div>
           </div>
 
           {/* Session Selector */}
