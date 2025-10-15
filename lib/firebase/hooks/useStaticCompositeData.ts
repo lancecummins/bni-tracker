@@ -77,26 +77,8 @@ export function useStaticLeaderboard(sessionId: string | null, usePublished: boo
         const score = scoreMap.get(user.id!) || null;
         const team = teams.find((t) => t.id === user.teamId) || null;
 
-        // Calculate points from metrics if totalPoints is wrong
-        let calculatedPoints = 0;
-        if (score && settings) {
-          calculatedPoints = (
-            (score.metrics.attendance || 0) * (settings?.pointValues?.attendance || 0) +
-            (score.metrics.one21s || 0) * (settings?.pointValues?.one21s || 0) +
-            (score.metrics.referrals || 0) * (settings?.pointValues?.referrals || 0) +
-            (score.metrics.tyfcb || 0) * (settings?.pointValues?.tyfcb || 0) +
-            (score.metrics.visitors || 0) * (settings?.pointValues?.visitors || 0)
-          );
-        }
-
-        console.log(`[useStaticLeaderboard] User ${user.firstName} ${user.lastName} (${user.id}):`, {
-          storedTotal: score?.totalPoints || 0,
-          calculatedTotal: calculatedPoints,
-          metrics: score?.metrics
-        });
-
-        // Use calculated points instead of stored totalPoints
-        const weeklyPoints = calculatedPoints || score?.totalPoints || 0;
+        // Use totalPoints from score (includes metrics + custom bonuses)
+        const weeklyPoints = score?.totalPoints || 0;
 
         return {
           userId: user.id!,
