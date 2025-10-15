@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
 interface DisplayData {
-  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD' | 'DISPLAY_TEAM_BONUS' | 'CELEBRATE_WINNING_TEAM';
+  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD' | 'DISPLAY_TEAM_BONUS' | 'DISPLAY_CUSTOM_BONUS' | 'CELEBRATE_WINNING_TEAM';
   user?: User;
   team?: Team;
   score?: Score;
@@ -23,6 +23,11 @@ interface DisplayData {
   teamColor?: string;
   bonusTotal?: number;
   bonusCategories?: string[];
+  // For custom bonus
+  bonusName?: string;
+  bonusPoints?: number;
+  isTeamBonus?: boolean;
+  targetName?: string;
   // For celebration
   winningTeam?: any;
   // For on-deck indicator
