@@ -547,28 +547,7 @@ export default function RefereePage() {
             updatedAt: Timestamp.now(),
           });
 
-          toast.success(`Awarded ${selectedBonus.name} to ${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`);
-
-          // Send to display
-          await fetch('/api/display', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'DISPLAY_CUSTOM_BONUS',
-              bonusName: selectedBonus.name,
-              bonusPoints: selectedBonus.points,
-              targetName: `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`,
-              isTeamBonus: false
-            })
-          });
-
-          displayChannel.send({
-            type: 'DISPLAY_CUSTOM_BONUS',
-            bonusName: selectedBonus.name,
-            bonusPoints: selectedBonus.points,
-            targetName: `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`,
-            isTeamBonus: false
-          });
+          toast.success(`Awarded ${selectedBonus.name} (+${selectedBonus.points} pts) to ${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`);
         } else {
           toast.error('No score found for this user');
         }
