@@ -11,7 +11,7 @@ import {
 } from '@/lib/firebase/hooks/useStaticCompositeData';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { Trophy, Users, Zap, Star, Gift, ChevronDown } from 'lucide-react';
+import { Trophy, Users, Zap, Star, Gift, ChevronDown, Award } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import { User, Team, Score } from '@/lib/types';
 import { displayChannel } from '@/lib/utils/displayChannel';
@@ -24,7 +24,7 @@ import RefereeDisplay from './referee/page';
 
 
 interface DisplayData {
-  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD' | 'DISPLAY_TEAM_BONUS' | 'CELEBRATE_WINNING_TEAM';
+  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD' | 'DISPLAY_TEAM_BONUS' | 'DISPLAY_CUSTOM_BONUS' | 'CELEBRATE_WINNING_TEAM';
   user?: User;
   team?: Team;
   score?: Score;
@@ -41,6 +41,11 @@ interface DisplayData {
   teamColor?: string;
   bonusTotal?: number;
   bonusCategories?: string[];
+  // For custom bonus
+  bonusName?: string;
+  bonusPoints?: number;
+  isTeamBonus?: boolean;
+  targetName?: string;
   // For on-deck indicator
   nextUser?: User;
   nextUserTeam?: Team;
@@ -57,6 +62,8 @@ function DisplayPageContent() {
   const [showSessionDropdown, setShowSessionDropdown] = useState(false);
   const { sessions: allSessions } = useStaticSeasonSessions(activeSession?.seasonId || null);
   const { settings } = useStaticSettings();
+
+  const bonusRevealRef = useRef<HTMLAudioElement | null>(null);
 
   // Determine which session to display
   const displaySessionId = selectedSession || sessionIdParam || activeSession?.id || null;
@@ -188,6 +195,18 @@ function DisplayPageContent() {
         // Handle team bonus display
         if (data.type === 'DISPLAY_TEAM_BONUS') {
           setDisplayData(data);
+          if (bonusRevealRef.current) {
+            bonusRevealRef.current.play().catch(err => console.log('Bonus sound failed:', err));
+          }
+          // Auto-clear after 5 seconds
+          setTimeout(() => {
+            setDisplayData(null);
+          }, 5000);
+        } else if (data.type === 'DISPLAY_CUSTOM_BONUS') {
+          setDisplayData(data);
+          if (bonusRevealRef.current) {
+            bonusRevealRef.current.play().catch(err => console.log('Bonus sound failed:', err));
+          }
           // Auto-clear after 5 seconds
           setTimeout(() => {
             setDisplayData(null);
@@ -242,6 +261,16 @@ function DisplayPageContent() {
       eventSource.close();
       window.removeEventListener('message', handleMessage);
     };
+  }, []);
+
+  // Bonus reveal sound setup
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!bonusRevealRef.current) {
+      bonusRevealRef.current = new Audio('/sounds/total-reveal.mp3');
+      bonusRevealRef.current.volume = 0.6;
+    }
   }, []);
 
   // Detect changes and trigger effects
@@ -422,6 +451,90 @@ function DisplayPageContent() {
                   spread: 70,
                   origin: { y: 0.6 },
                   colors: [displayData.teamColor || '#3B82F6', '#FCD34D', '#10B981']
+                });
+              }}
+            />
+          </motion.div>
+        </div>
+      );
+    }
+
+    // Special handling for custom bonus display
+    if (displayData.type === 'DISPLAY_CUSTOM_BONUS') {
+      return (
+        <div className="h-screen bg-gradient-to-br from-purple-900 to-pink-900 text-white flex items-center justify-center">
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{
+              type: "spring",
+              stiffness: 260,
+              damping: 20
+            }}
+            className="text-center max-w-3xl mx-auto p-8"
+          >
+            {/* Award Icon */}
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mb-8"
+            >
+              <Award size={100} className="text-yellow-400 mx-auto" />
+            </motion.div>
+
+            {/* Bonus Name */}
+            <motion.h1
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-6xl font-bold text-yellow-400 mb-6"
+            >
+              {displayData.bonusName}
+            </motion.h1>
+
+            {/* Points */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
+              className="mb-8"
+            >
+              <div className="inline-block px-12 py-6 bg-white/20 backdrop-blur-lg rounded-2xl">
+                <span className="text-8xl font-bold text-white">
+                  +{displayData.bonusPoints}
+                </span>
+              </div>
+            </motion.div>
+
+            {/* Target */}
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="bg-white/20 backdrop-blur-lg rounded-xl p-6"
+            >
+              <p className="text-2xl text-gray-200 mb-2">Awarded to:</p>
+              <h2 className="text-4xl font-bold">
+                {displayData.targetName}
+              </h2>
+              {displayData.isTeamBonus && (
+                <p className="text-xl text-yellow-300 mt-2">🎉 Team Bonus! 🎉</p>
+              )}
+            </motion.div>
+
+            {/* Confetti Effect */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              onAnimationComplete={() => {
+                confetti({
+                  particleCount: 150,
+                  spread: 120,
+                  origin: { y: 0.6 },
+                  colors: ['#FCD34D', '#A855F7', '#EC4899', '#10B981']
                 });
               }}
             />
@@ -634,6 +747,7 @@ function DisplayPageContent() {
             className="object-contain"
             priority
           />
+
           <div className="flex flex-col items-center gap-1">
             <div className="relative">
               <button

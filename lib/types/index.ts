@@ -60,6 +60,15 @@ export interface BonusValues {
 
 export type SessionStatus = 'draft' | 'open' | 'closed';
 
+export interface TeamCustomBonus {
+  teamId: string;
+  bonusId: string;
+  bonusName: string;
+  points: number;
+  awardedBy: string;
+  awardedAt: Timestamp;
+}
+
 export interface Session {
   id?: string;
   name?: string;
@@ -71,6 +80,7 @@ export interface Session {
   createdAt: Timestamp;
   closedAt?: Timestamp | null;
   isArchived?: boolean;
+  teamCustomBonuses?: TeamCustomBonus[];
 }
 
 export interface ScoreMetrics {

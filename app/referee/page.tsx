@@ -7,8 +7,8 @@ import { useActiveSession } from '@/lib/firebase/hooks/useSessions';
 import { useAllSessions } from '@/lib/firebase/hooks';
 import { useSessionScores } from '@/lib/firebase/hooks/useScores';
 import { useSettings } from '@/lib/firebase/hooks/useSettings';
-import { User, Team, Score, Session, CustomBonus, AwardedCustomBonus } from '@/lib/types';
-import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { User, Team, Score, Session, CustomBonus, AwardedCustomBonus, TeamCustomBonus } from '@/lib/types';
+import { doc, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Monitor, Play, Users as UsersIcon, Trophy, Eye, Check, CheckCircle, Gift, BarChart3, Award, X } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
@@ -474,7 +474,7 @@ export default function RefereePage() {
   };
 
   const getTeamBonuses = (teamId: string) => {
-    if (!settings) return { total: 0, categories: [] };
+    if (!settings) return { total: 0, categories: [], customBonuses: [] };
 
     const teamMembers = users.filter(u => u.teamId === teamId && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
     const teamScores = scores.filter(s => teamMembers.some(m => m.id === s.userId));
@@ -482,6 +482,7 @@ export default function RefereePage() {
     let bonusPoints = 0;
     const categories: string[] = [];
 
+    // "All In" bonuses
     if (teamScores.length === teamMembers.length && teamMembers.length > 0) {
       const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
 
@@ -498,7 +499,12 @@ export default function RefereePage() {
       });
     }
 
-    return { total: bonusPoints, categories };
+    // Custom team bonuses from session
+    const customBonuses = selectedSession?.teamCustomBonuses?.filter(b => b.teamId === teamId) || [];
+    const customBonusTotal = customBonuses.reduce((sum, b) => sum + b.points, 0);
+    bonusPoints += customBonusTotal;
+
+    return { total: bonusPoints, categories, customBonuses };
   };
 
   const handleAwardBonus = async () => {
@@ -536,41 +542,67 @@ export default function RefereePage() {
           });
 
           toast.success(`Awarded ${selectedBonus.name} to ${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`);
+
+          // Send to display
+          await fetch('/api/display', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'DISPLAY_CUSTOM_BONUS',
+              bonusName: selectedBonus.name,
+              bonusPoints: selectedBonus.points,
+              targetName: `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`,
+              isTeamBonus: false
+            })
+          });
+
+          displayChannel.send({
+            type: 'DISPLAY_CUSTOM_BONUS',
+            bonusName: selectedBonus.name,
+            bonusPoints: selectedBonus.points,
+            targetName: `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`,
+            isTeamBonus: false
+          });
         } else {
           toast.error('No score found for this user');
         }
       } else {
-        const teamMembers = users.filter(u => u.teamId === awardBonusTarget.team?.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
-        let updatedCount = 0;
+        // Award team bonus to session instead of individual scores
+        const teamBonus: TeamCustomBonus = {
+          teamId: awardBonusTarget.team!.id!,
+          bonusId: selectedBonus.id!,
+          bonusName: selectedBonus.name,
+          points: selectedBonus.points,
+          awardedBy: 'referee',
+          awardedAt: Timestamp.now(),
+        };
 
-        for (const member of teamMembers) {
-          const userScore = scores.find(s => s.userId === member.id);
-          if (userScore) {
-            const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
-            const customBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
-            const metricsTotal = (
-              ((userScore.metrics.attendance || 0) * (settings!.pointValues.attendance || 0)) +
-              ((userScore.metrics.one21s || 0) * (settings!.pointValues.one21s || 0)) +
-              ((userScore.metrics.referrals || 0) * (settings!.pointValues.referrals || 0)) +
-              ((userScore.metrics.tyfcb || 0) * (settings!.pointValues.tyfcb || 0)) +
-              ((userScore.metrics.visitors || 0) * (settings!.pointValues.visitors || 0))
-            );
+        await updateDoc(doc(db, 'sessions', selectedSession.id!), {
+          teamCustomBonuses: arrayUnion(teamBonus)
+        });
 
-            await updateDoc(doc(db, 'scores', userScore.id!), {
-              customBonuses: updatedCustomBonuses,
-              totalPoints: metricsTotal + customBonusTotal,
-              updatedAt: Timestamp.now(),
-            });
+        toast.success(`Awarded ${selectedBonus.name} to ${awardBonusTarget.team?.name}`);
 
-            updatedCount++;
-          }
-        }
+        // Send to display
+        await fetch('/api/display', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'DISPLAY_CUSTOM_BONUS',
+            bonusName: selectedBonus.name,
+            bonusPoints: selectedBonus.points,
+            targetName: awardBonusTarget.team?.name,
+            isTeamBonus: true
+          })
+        });
 
-        if (updatedCount > 0) {
-          toast.success(`Awarded ${selectedBonus.name} to all ${updatedCount} members of ${awardBonusTarget.team?.name}`);
-        } else {
-          toast.error('No scores found for team members');
-        }
+        displayChannel.send({
+          type: 'DISPLAY_CUSTOM_BONUS',
+          bonusName: selectedBonus.name,
+          bonusPoints: selectedBonus.points,
+          targetName: awardBonusTarget.team?.name,
+          isTeamBonus: true
+        });
       }
 
       setShowAwardBonusModal(false);
@@ -819,6 +851,11 @@ export default function RefereePage() {
                               c === 'tyfcb' ? 'TYFCB' :
                               c.charAt(0).toUpperCase() + c.slice(1)
                             ).join(', ')})
+                          </span>
+                        )}
+                        {bonuses.customBonuses && bonuses.customBonuses.length > 0 && (
+                          <span className="text-xs text-gray-600">
+                            + {bonuses.customBonuses.map(cb => cb.bonusName).join(', ')}
                           </span>
                         )}
                       </div>

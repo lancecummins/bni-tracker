@@ -133,6 +133,7 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
   const { users, loading: usersLoading } = useStaticUsers();
   const { scores, loading: scoresLoading } = useStaticSessionScores(sessionId);
   const { settings, loading: settingsLoading } = useStaticSettings();
+  const { session, loading: sessionLoading } = useStaticActiveSession();
   const [revealedUserIds, setRevealedUserIds] = useState<Set<string>>(new Set());
   const [revealedBonusTeamIds, setRevealedBonusTeamIds] = useState<Set<string>>(new Set());
 
@@ -154,7 +155,7 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
     return unsubscribe;
   }, []);
 
-  const loading = teamsLoading || usersLoading || scoresLoading || settingsLoading;
+  const loading = teamsLoading || usersLoading || scoresLoading || settingsLoading || sessionLoading;
 
   const standings = useMemo(() => {
     if (!sessionId || loading || !teams.length) return [];
@@ -214,6 +215,12 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
             bonusCategories.push(category);
           }
         });
+
+        // Add custom team bonuses
+        if (session?.teamCustomBonuses) {
+          const teamCustomBonuses = session.teamCustomBonuses.filter(b => b.teamId === team.id);
+          bonusPoints += teamCustomBonuses.reduce((sum, b) => sum + b.points, 0);
+        }
       }
 
       return {
@@ -258,7 +265,7 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
     });
 
     return teamStandings;
-  }, [teams, users, scores, settings, sessionId, loading, usePublished, revealedUserIds, revealedBonusTeamIds]);
+  }, [teams, users, scores, settings, sessionId, loading, usePublished, revealedUserIds, revealedBonusTeamIds, session]);
 
   return { standings, loading };
 }
