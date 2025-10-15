@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import { timerChannel } from '@/lib/utils/timerChannel';
 
 export default function LogoPage() {
-  const [timeLeft, setTimeLeft] = useState(180); // 3 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(169); // 2:49 in seconds
   const [isRunning, setIsRunning] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const buzzerRef = useRef<HTMLAudioElement | null>(null);
@@ -14,7 +15,7 @@ export default function LogoPage() {
     if (!audioRef.current) {
       audioRef.current = new Audio('/sounds/bni-game-theme2.mp3');
       audioRef.current.volume = 0.5;
-      audioRef.current.loop = true;
+      audioRef.current.loop = false;
     }
 
     if (!buzzerRef.current) {
@@ -65,7 +66,7 @@ export default function LogoPage() {
 
   const handleReset = () => {
     setIsRunning(false);
-    setTimeLeft(180);
+    setTimeLeft(169);
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -77,6 +78,29 @@ export default function LogoPage() {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  useEffect(() => {
+    timerChannel.onMessage((message) => {
+      if (message.type === 'TIMER_START') {
+        setIsRunning(true);
+        if (audioRef.current) {
+          audioRef.current.play().catch(err => console.log('Audio play failed:', err));
+        }
+      } else if (message.type === 'TIMER_PAUSE') {
+        setIsRunning(false);
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+      } else if (message.type === 'TIMER_RESET') {
+        setIsRunning(false);
+        setTimeLeft(169);
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+      }
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex flex-col items-center justify-center p-8">

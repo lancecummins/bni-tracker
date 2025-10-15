@@ -81,6 +81,22 @@ export interface ScoreMetrics {
   visitors: number;
 }
 
+export interface CustomBonus {
+  id?: string;
+  name: string;
+  points: number;
+  isArchived?: boolean;
+  createdAt?: Timestamp;
+}
+
+export interface AwardedCustomBonus {
+  bonusId: string;
+  bonusName: string;
+  points: number;
+  awardedBy: string;
+  awardedAt: Timestamp;
+}
+
 export interface Score {
   id?: string;
   userId: string;
@@ -93,6 +109,7 @@ export interface Score {
   enteredBy?: string; // ID of team leader who entered the score
   publishedBy?: string; // ID of admin who published
   publishedAt?: Timestamp;
+  customBonuses?: AwardedCustomBonus[]; // Custom bonuses awarded to this individual
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -143,6 +160,7 @@ export interface Settings {
   id?: string;
   pointValues: PointValues;
   bonusValues?: BonusValues;
+  customBonuses?: CustomBonus[]; // Custom bonuses that can be awarded
   createdAt: Timestamp;
   updatedAt?: Timestamp;
 }

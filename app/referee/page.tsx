@@ -7,14 +7,17 @@ import { useActiveSession } from '@/lib/firebase/hooks/useSessions';
 import { useAllSessions } from '@/lib/firebase/hooks';
 import { useSessionScores } from '@/lib/firebase/hooks/useScores';
 import { useSettings } from '@/lib/firebase/hooks/useSettings';
-import { User, Team, Score, Session } from '@/lib/types';
-import { Monitor, Play, Users as UsersIcon, Trophy, Eye, Check, CheckCircle, Gift, BarChart3 } from 'lucide-react';
+import { User, Team, Score, Session, CustomBonus, AwardedCustomBonus } from '@/lib/types';
+import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { Monitor, Play, Users as UsersIcon, Trophy, Eye, Check, CheckCircle, Gift, BarChart3, Award, X } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { shownUsersStore } from '@/lib/utils/revealedUsersStore';
 import { revealedBonusesStore } from '@/lib/utils/revealedBonusesStore';
 import { displayChannel } from '@/lib/utils/displayChannel';
+import { timerChannel } from '@/lib/utils/timerChannel';
 
 export default function RefereePage() {
   const { users } = useUsers();
@@ -55,6 +58,9 @@ export default function RefereePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [shownUserIds, setShownUserIds] = useState<Set<string>>(new Set());
   const [revealedBonusTeamIds, setRevealedBonusTeamIds] = useState<Set<string>>(new Set());
+  const [showAwardBonusModal, setShowAwardBonusModal] = useState(false);
+  const [awardBonusTarget, setAwardBonusTarget] = useState<{ type: 'individual' | 'team', user: User, team?: Team } | null>(null);
+  const [selectedBonus, setSelectedBonus] = useState<CustomBonus | null>(null);
   const [filterMode, setFilterMode] = useState<'all' | 'shown' | 'not-shown' | 'no-score'>('all');
   const [sortMode, setSortMode] = useState<'team' | 'name' | 'points' | 'random'>('team');
   const [randomOrder, setRandomOrder] = useState<string[]>([]);
@@ -185,14 +191,17 @@ export default function RefereePage() {
     const score = scores.find(s => s.userId === userId);
     if (!score || !settings) return 0;
 
-    const total = (
+    const metricsTotal = (
       ((score.metrics.attendance || 0) * (settings.pointValues.attendance || 0)) +
       ((score.metrics.one21s || 0) * (settings.pointValues.one21s || 0)) +
       ((score.metrics.referrals || 0) * (settings.pointValues.referrals || 0)) +
       ((score.metrics.tyfcb || 0) * (settings.pointValues.tyfcb || 0)) +
       ((score.metrics.visitors || 0) * (settings.pointValues.visitors || 0))
     );
-    return total;
+
+    const customBonusTotal = (score.customBonuses || []).reduce((sum, bonus) => sum + bonus.points, 0);
+
+    return metricsTotal + customBonusTotal;
   };
 
   // Apply sorting
@@ -492,12 +501,108 @@ export default function RefereePage() {
     return { total: bonusPoints, categories };
   };
 
+  const handleAwardBonus = async () => {
+    if (!selectedBonus || !awardBonusTarget || !selectedSession) {
+      toast.error('Please select a bonus');
+      return;
+    }
+
+    const awardedBonus: AwardedCustomBonus = {
+      bonusId: selectedBonus.id!,
+      bonusName: selectedBonus.name,
+      points: selectedBonus.points,
+      awardedBy: 'referee',
+      awardedAt: Timestamp.now(),
+    };
+
+    try {
+      if (awardBonusTarget.type === 'individual') {
+        const userScore = scores.find(s => s.userId === awardBonusTarget.user.id);
+        if (userScore) {
+          const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
+          const customBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
+          const metricsTotal = (
+            ((userScore.metrics.attendance || 0) * (settings!.pointValues.attendance || 0)) +
+            ((userScore.metrics.one21s || 0) * (settings!.pointValues.one21s || 0)) +
+            ((userScore.metrics.referrals || 0) * (settings!.pointValues.referrals || 0)) +
+            ((userScore.metrics.tyfcb || 0) * (settings!.pointValues.tyfcb || 0)) +
+            ((userScore.metrics.visitors || 0) * (settings!.pointValues.visitors || 0))
+          );
+
+          await updateDoc(doc(db, 'scores', userScore.id!), {
+            customBonuses: updatedCustomBonuses,
+            totalPoints: metricsTotal + customBonusTotal,
+            updatedAt: Timestamp.now(),
+          });
+
+          toast.success(`Awarded ${selectedBonus.name} to ${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`);
+        } else {
+          toast.error('No score found for this user');
+        }
+      } else {
+        const teamMembers = users.filter(u => u.teamId === awardBonusTarget.team?.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
+        let updatedCount = 0;
+
+        for (const member of teamMembers) {
+          const userScore = scores.find(s => s.userId === member.id);
+          if (userScore) {
+            const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
+            const customBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
+            const metricsTotal = (
+              ((userScore.metrics.attendance || 0) * (settings!.pointValues.attendance || 0)) +
+              ((userScore.metrics.one21s || 0) * (settings!.pointValues.one21s || 0)) +
+              ((userScore.metrics.referrals || 0) * (settings!.pointValues.referrals || 0)) +
+              ((userScore.metrics.tyfcb || 0) * (settings!.pointValues.tyfcb || 0)) +
+              ((userScore.metrics.visitors || 0) * (settings!.pointValues.visitors || 0))
+            );
+
+            await updateDoc(doc(db, 'scores', userScore.id!), {
+              customBonuses: updatedCustomBonuses,
+              totalPoints: metricsTotal + customBonusTotal,
+              updatedAt: Timestamp.now(),
+            });
+
+            updatedCount++;
+          }
+        }
+
+        if (updatedCount > 0) {
+          toast.success(`Awarded ${selectedBonus.name} to all ${updatedCount} members of ${awardBonusTarget.team?.name}`);
+        } else {
+          toast.error('No scores found for team members');
+        }
+      }
+
+      setShowAwardBonusModal(false);
+      setAwardBonusTarget(null);
+      setSelectedBonus(null);
+    } catch (error) {
+      console.error('Error awarding bonus:', error);
+      toast.error('Failed to award bonus');
+    }
+  };
+
   const openDisplayWindow = () => {
     window.open('/display', 'display', 'width=1920,height=1080');
   };
 
   const openLogoWindow = () => {
     window.open('/logo', 'logo', 'width=1920,height=1080');
+  };
+
+  const handleTimerStart = () => {
+    timerChannel.send({ type: 'TIMER_START' });
+    toast.success('Timer started');
+  };
+
+  const handleTimerPause = () => {
+    timerChannel.send({ type: 'TIMER_PAUSE' });
+    toast.success('Timer paused');
+  };
+
+  const handleTimerReset = () => {
+    timerChannel.send({ type: 'TIMER_RESET' });
+    toast.success('Timer reset');
   };
 
   const getScoreStatus = (userId: string) => {
@@ -548,17 +653,42 @@ export default function RefereePage() {
             <div className="flex gap-2">
               <button
                 onClick={openDisplayWindow}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm md:text-base"
+                className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm"
               >
-                <Monitor size={18} />
+                <Monitor size={16} />
                 <span className="hidden sm:inline">Display</span>
               </button>
               <button
                 onClick={openLogoWindow}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm md:text-base"
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
               >
-                <Trophy size={18} />
+                <Trophy size={16} />
                 <span className="hidden sm:inline">Logo</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Timer Controls */}
+          <div className="flex items-center justify-between mb-3 bg-gradient-to-r from-blue-100 to-purple-100 p-3 rounded-lg">
+            <span className="text-sm font-semibold text-gray-700">Logo Timer Controls</span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleTimerStart}
+                className="px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700"
+              >
+                Start
+              </button>
+              <button
+                onClick={handleTimerPause}
+                className="px-3 py-1.5 bg-yellow-600 text-white rounded text-xs font-medium hover:bg-yellow-700"
+              >
+                Pause
+              </button>
+              <button
+                onClick={handleTimerReset}
+                className="px-3 py-1.5 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700"
+              >
+                Reset
               </button>
             </div>
           </div>
@@ -581,7 +711,7 @@ export default function RefereePage() {
           </div>
 
           {/* Main Control Buttons */}
-          <div className="mb-3 space-y-2">
+          <div className="mb-3 space-y-2 mt-3">
             <button
               onClick={handleFullScoreboard}
               className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-base font-medium"
@@ -762,7 +892,7 @@ export default function RefereePage() {
                       </div>
 
                       {/* Action Buttons Row */}
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <button
                           onClick={() => handleDisplayUser(member, teamMembers.indexOf(member))}
                           className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
@@ -778,10 +908,36 @@ export default function RefereePage() {
                           <Play size={16} />
                           Display Stats
                         </button>
+                        <button
+                          onClick={() => {
+                            setAwardBonusTarget({ type: 'individual', user: member, team: teams.find(t => t.id === member.teamId) });
+                            setShowAwardBonusModal(true);
+                          }}
+                          className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                        >
+                          <Award size={16} />
+                          Bonus
+                        </button>
                       </div>
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Team-wide Bonus Button */}
+              <div className="mt-2">
+                <button
+                  onClick={() => {
+                    if (teamMembers.length > 0) {
+                      setAwardBonusTarget({ type: 'team', user: teamMembers[0], team });
+                      setShowAwardBonusModal(true);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+                >
+                  <Award size={16} />
+                  Award Bonus to Entire Team
+                </button>
               </div>
             </div>
           );
@@ -851,7 +1007,7 @@ export default function RefereePage() {
                   </div>
 
                   {/* Action Buttons Row */}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => handleDisplayUser(member, index)}
                       className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
@@ -867,6 +1023,16 @@ export default function RefereePage() {
                       <Play size={16} />
                       Display Stats
                     </button>
+                    <button
+                      onClick={() => {
+                        setAwardBonusTarget({ type: 'individual', user: member, team: memberTeam });
+                        setShowAwardBonusModal(true);
+                      }}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                    >
+                      <Award size={16} />
+                      Bonus
+                    </button>
                   </div>
                 </div>
               );
@@ -880,6 +1046,112 @@ export default function RefereePage() {
           </div>
         )}
       </div>
+
+      {/* Award Bonus Modal */}
+      {showAwardBonusModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Award className="text-purple-600" />
+                Award Custom Bonus
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAwardBonusModal(false);
+                  setAwardBonusTarget(null);
+                  setSelectedBonus(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">
+                Award to: <span className="font-semibold">
+                  {awardBonusTarget?.type === 'individual'
+                    ? `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`
+                    : `All members of ${awardBonusTarget?.team?.name}`
+                  }
+                </span>
+              </p>
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  onClick={() => setAwardBonusTarget(prev => prev ? { ...prev, type: 'individual' } : null)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    awardBonusTarget?.type === 'individual'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Individual
+                </button>
+                <button
+                  onClick={() => setAwardBonusTarget(prev => prev ? { ...prev, type: 'team' } : null)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    awardBonusTarget?.type === 'team'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Entire Team
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Bonus
+              </label>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {settings?.customBonuses?.filter(b => !b.isArchived).map(bonus => (
+                  <button
+                    key={bonus.id}
+                    onClick={() => setSelectedBonus(bonus)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
+                      selectedBonus?.id === bonus.id
+                        ? 'border-purple-600 bg-purple-50'
+                        : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{bonus.name}</span>
+                      <span className="text-purple-600 font-bold">+{bonus.points} pts</span>
+                    </div>
+                  </button>
+                ))}
+                {(!settings?.customBonuses || settings.customBonuses.filter(b => !b.isArchived).length === 0) && (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    No custom bonuses available. Create one in Settings first.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowAwardBonusModal(false);
+                  setAwardBonusTarget(null);
+                  setSelectedBonus(null);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAwardBonus}
+                disabled={!selectedBonus}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Award Bonus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
