@@ -221,12 +221,14 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
       visitors: 0
     };
     const points = displayData.settings?.pointValues || {};
-    const total =
+    // Use totalPoints from score (includes custom bonuses), fallback to calculated
+    const total = displayData.score?.totalPoints || (
       (metrics.attendance || 0) * (points.attendance || 0) +
       (metrics.one21s || 0) * (points.one21s || 0) +
       (metrics.referrals || 0) * (points.referrals || 0) +
       (metrics.tyfcb || 0) * (points.tyfcb || 0) +
-      (metrics.visitors || 0) * (points.visitors || 0);
+      (metrics.visitors || 0) * (points.visitors || 0)
+    );
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-12">
