@@ -189,19 +189,9 @@ export default function RefereePage() {
   // Helper function to get user score
   const getUserScore = (userId: string) => {
     const score = scores.find(s => s.userId === userId);
-    if (!score || !settings) return 0;
-
-    const metricsTotal = (
-      ((score.metrics.attendance || 0) * (settings.pointValues.attendance || 0)) +
-      ((score.metrics.one21s || 0) * (settings.pointValues.one21s || 0)) +
-      ((score.metrics.referrals || 0) * (settings.pointValues.referrals || 0)) +
-      ((score.metrics.tyfcb || 0) * (settings.pointValues.tyfcb || 0)) +
-      ((score.metrics.visitors || 0) * (settings.pointValues.visitors || 0))
-    );
-
-    const customBonusTotal = (score.customBonuses || []).reduce((sum, bonus) => sum + bonus.points, 0);
-
-    return metricsTotal + customBonusTotal;
+    if (!score) return 0;
+    // Use totalPoints which already includes metrics + custom bonuses
+    return score.totalPoints || 0;
   };
 
   // Apply sorting
