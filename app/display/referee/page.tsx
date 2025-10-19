@@ -421,6 +421,33 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
                 <div className="text-7xl font-bold text-white">
                   {total} POINTS
                 </div>
+
+                {/* Custom Bonus Badges */}
+                {displayData.score?.customBonuses && displayData.score.customBonuses.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="mt-6 pt-6 border-t-2 border-white/30"
+                  >
+                    <div className="text-lg text-white/80 mb-3">Bonus Awards</div>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {displayData.score.customBonuses.map((bonus, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ scale: 0, rotate: -180 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ delay: 0.7 + index * 0.1, type: "spring" }}
+                          className="bg-white/20 backdrop-blur px-4 py-2 rounded-full flex items-center gap-2"
+                        >
+                          <Star className="text-yellow-300" size={20} />
+                          <span className="text-white font-semibold">{bonus.bonusName}</span>
+                          <span className="text-yellow-300 font-bold">+{bonus.points}</span>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
