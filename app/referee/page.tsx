@@ -531,6 +531,16 @@ export default function RefereePage() {
       if (awardBonusTarget.type === 'individual') {
         const userScore = scores.find(s => s.userId === awardBonusTarget.user.id);
         if (userScore) {
+          // Check if this bonus has already been awarded to this user
+          const alreadyAwarded = userScore.customBonuses?.some(b => b.bonusId === selectedBonus.id);
+          if (alreadyAwarded) {
+            toast.error(`${selectedBonus.name} has already been awarded to ${awardBonusTarget.user.firstName}`);
+            setShowAwardBonusModal(false);
+            setAwardBonusTarget(null);
+            setSelectedBonus(null);
+            return;
+          }
+
           const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
           const customBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
           const metricsTotal = (
@@ -552,6 +562,18 @@ export default function RefereePage() {
           toast.error('No score found for this user');
         }
       } else {
+        // Check if this bonus has already been awarded to this team
+        const alreadyAwarded = selectedSession.teamCustomBonuses?.some(
+          b => b.teamId === awardBonusTarget.team!.id && b.bonusId === selectedBonus.id
+        );
+        if (alreadyAwarded) {
+          toast.error(`${selectedBonus.name} has already been awarded to ${awardBonusTarget.team?.name}`);
+          setShowAwardBonusModal(false);
+          setAwardBonusTarget(null);
+          setSelectedBonus(null);
+          return;
+        }
+
         // Award team bonus to session instead of individual scores
         const teamBonus: TeamCustomBonus = {
           teamId: awardBonusTarget.team!.id!,
