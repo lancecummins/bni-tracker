@@ -204,9 +204,9 @@ export function useStaticSessionScores(sessionId: string | null) {
 
     const fetchScores = async () => {
       try {
-        // Check cache first
+        // Check cache first - use shorter TTL for scores (10 seconds) since they update frequently
         if (!scoreCache.has(sessionId)) {
-          scoreCache.set(sessionId, new DataCache<Score[]>(5));
+          scoreCache.set(sessionId, new DataCache<Score[]>(10 / 60)); // 10 seconds in minutes
         }
         const cache = scoreCache.get(sessionId)!;
         const cached = cache.get();
