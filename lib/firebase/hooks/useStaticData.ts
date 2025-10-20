@@ -190,8 +190,35 @@ export function useStaticActiveSession() {
   return { session, loading };
 }
 
+export function useStaticSession(sessionId: string | null) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!sessionId) {
+      setSession(null);
+      setLoading(false);
+      return;
+    }
+
+    const fetchSession = async () => {
+      try {
+        const data = await sessionService.getById(sessionId);
+        setSession(data);
+      } catch (error) {
+        console.error('Error fetching session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSession();
+  }, [sessionId]);
+
+  return { session, loading };
+}
+
 // New static hook for session scores
-export function useStaticSessionScores(sessionId: string | null) {
+export function useStaticSessionScores(sessionId: string | null, refreshKey?: number) {
   const [scores, setScores] = useState<Score[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -203,21 +230,17 @@ export function useStaticSessionScores(sessionId: string | null) {
     }
 
     const fetchScores = async () => {
+      setLoading(true);
       try {
-        // Check cache first - use shorter TTL for scores (10 seconds) since they update frequently
+        // Always fetch fresh data from database when refreshKey changes
+        const data = await scoreService.getBySession(sessionId);
+        setScores(data);
+
+        // Update cache with fresh data
         if (!scoreCache.has(sessionId)) {
           scoreCache.set(sessionId, new DataCache<Score[]>(10 / 60)); // 10 seconds in minutes
         }
         const cache = scoreCache.get(sessionId)!;
-        const cached = cache.get();
-        if (cached) {
-          setScores(cached);
-          setLoading(false);
-          return;
-        }
-
-        const data = await scoreService.getBySession(sessionId);
-        setScores(data);
         cache.set(data);
       } catch (error) {
         console.error('Error fetching scores:', error);
@@ -226,7 +249,7 @@ export function useStaticSessionScores(sessionId: string | null) {
       }
     };
     fetchScores();
-  }, [sessionId]);
+  }, [sessionId, refreshKey]);
 
   return { scores, loading };
 }

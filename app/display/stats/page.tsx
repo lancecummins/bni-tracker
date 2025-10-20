@@ -19,18 +19,30 @@ import {
   useSeasonTotals,
   useUsers,
   useTeams,
-  useActiveSession
+  useActiveSession,
+  useSettings
 } from '@/lib/firebase/hooks';
 import { Avatar } from '@/components/Avatar';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 export default function SeasonDashboardPage() {
   const router = useRouter();
   const { session: activeSession } = useActiveSession();
   const { users } = useUsers();
   const { teams } = useTeams();
-  const { userTotals, teamTotals, loading, weekCount } = useSeasonTotals('season-id');
+  const { settings } = useSettings();
+  const { userTotals, teamTotals, loading, weekCount, weeklyData } = useSeasonTotals('season-id');
 
-  const totalWeeks = 12; // This should come from season config
+  const totalWeeks = settings?.seasonSettings?.weekCount || 12;
   const progressPercentage = (weekCount / totalWeeks) * 100;
 
   if (loading) {
@@ -66,6 +78,10 @@ export default function SeasonDashboardPage() {
     });
   });
 
+  // Get top 5 users for individual chart
+  const topUsersForChart = userTotals.slice(0, 5);
+  const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
   return (
     <div className="h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white overflow-hidden">
       <div className="h-full flex flex-col p-4">
@@ -100,191 +116,121 @@ export default function SeasonDashboardPage() {
           </div>
         </div>
 
-        {/* Main Content Area - Flex Grow */}
-        <div className="flex-1 grid grid-cols-3 gap-4 overflow-hidden">
-          {/* Left Column - Team Standings */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 flex flex-col">
-            <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-              <Users size={20} />
-              Team Standings
-            </h2>
+        {/* All Individual Users Chart - Full Screen */}
+        <div className="flex-1 bg-white/10 backdrop-blur-lg rounded-xl p-4 flex flex-col overflow-hidden">
+          <h2 className="text-lg font-bold mb-2 flex items-center gap-2">
+            <Crown size={20} className="text-yellow-400" />
+            All Individual Performance Week Over Week
+          </h2>
+          <div className="flex-1 overflow-hidden">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={weeklyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis
+                  dataKey="weekName"
+                  stroke="rgba(255,255,255,0.7)"
+                  tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 16 }}
+                />
+                <YAxis
+                  stroke="rgba(255,255,255,0.7)"
+                  tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 14 }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '8px',
+                    color: '#fff'
+                  }}
+                  formatter={(value: any, name: any) => {
+                    const user = users.find(u => u.id === name);
+                    const displayName = user ? `${user.firstName} ${user.lastName}` : name;
+                    return [value, displayName];
+                  }}
+                />
+                {userTotals.map((userTotal, index) => {
+                  const user = users.find(u => u.id === userTotal.userId);
+                  if (!user) return null;
+                  // Generate colors for all users
+                  const colors = [
+                    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                    '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#6366f1',
+                    '#84cc16', '#a855f7', '#22c55e', '#eab308', '#dc2626',
+                    '#64748b', '#0ea5e9', '#f43f5e', '#8b5cf6', '#14b8a6'
+                  ];
+                  return (
+                    <Line
+                      key={userTotal.userId}
+                      type="monotone"
+                      dataKey={userTotal.userId}
+                      stroke={colors[index % colors.length]}
+                      strokeWidth={2}
+                      dot={(props: any) => {
+                        const { cx, cy, payload, index: dotIndex } = props;
+                        if (cx === undefined || cy === undefined) return null;
 
-            <div className="space-y-2 flex-1 overflow-y-auto">
-              {topTeams.map((teamTotal, index) => {
-                const team = teams.find(t => t.id === teamTotal.teamId);
-                if (!team) return null;
-
-                return (
-                  <motion.div
-                    key={teamTotal.teamId}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className={`p-3 rounded-lg ${
-                      index === 0
-                        ? 'bg-gradient-to-r from-yellow-500/30 to-orange-500/30 border border-yellow-400'
-                        : 'bg-white/5'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`text-lg font-bold ${
-                          index === 0 ? 'text-yellow-400' : 'text-white/70'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold" style={{ color: team.color }}>
-                            {team.name}
-                          </h3>
-                          <div className="text-xs text-white/60">
-                            {teamTotal.weeklyWins > 0 && (
-                              <span className="text-yellow-400">🏆 {teamTotal.weeklyWins} </span>
+                        return (
+                          <g key={`dot-${userTotal.userId}-${dotIndex}`}>
+                            <circle
+                              cx={cx}
+                              cy={cy}
+                              r={12}
+                              fill={colors[index % colors.length]}
+                              stroke="white"
+                              strokeWidth={2}
+                            />
+                            {user.avatarUrl ? (
+                              <>
+                                <defs>
+                                  <clipPath id={`clip-${userTotal.userId}-${cx}-${cy}`}>
+                                    <circle cx={cx} cy={cy} r={10} />
+                                  </clipPath>
+                                </defs>
+                                <image
+                                  x={cx - 10}
+                                  y={cy - 10}
+                                  width={20}
+                                  height={20}
+                                  href={user.avatarUrl}
+                                  clipPath={`url(#clip-${userTotal.userId}-${cx}-${cy})`}
+                                />
+                              </>
+                            ) : (
+                              <text
+                                x={cx}
+                                y={cy}
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                fill="white"
+                                fontSize="10"
+                                fontWeight="bold"
+                              >
+                                {user.firstName[0]}{user.lastName[0]}
+                              </text>
                             )}
-                            <span>Avg: {teamTotal.averagePoints}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xl font-bold">{teamTotal.totalPoints}</div>
-                        <div className="text-xs text-white/60">total</div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Middle Column - Individual Leaders */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 flex flex-col">
-            <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-              <Crown size={20} />
-              Individual Leaders
-            </h2>
-
-            <div className="space-y-1 flex-1 overflow-y-auto">
-              {topUsers.map((userTotal, index) => {
-                const user = users.find(u => u.id === userTotal.userId);
-                if (!user) return null;
-
-                return (
-                  <motion.div
-                    key={userTotal.userId}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className={`flex items-center gap-2 p-2 rounded-lg ${
-                      index === 0
-                        ? 'bg-gradient-to-r from-green-500/30 to-blue-500/30 border border-green-400'
-                        : 'bg-white/5'
-                    }`}
-                  >
-                    <div className={`text-sm font-bold w-6 text-center ${
-                      index === 0 ? 'text-green-400' : 'text-white/50'
-                    }`}>
-                      {index + 1}
-                    </div>
-                    <Avatar
-                      src={user.avatarUrl}
-                      fallbackSeed={`${user.firstName}${user.lastName}`}
-                      size="sm"
-                      className="border border-white/30"
+                            <text
+                              x={cx + 20}
+                              y={cy}
+                              textAnchor="start"
+                              dominantBaseline="central"
+                              fill="white"
+                              fontSize="12"
+                              fontWeight="600"
+                            >
+                              {user.firstName} {user.lastName}
+                            </text>
+                          </g>
+                        );
+                      }}
+                      name={userTotal.userId}
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">
-                        {user.firstName} {user.lastName}
-                      </div>
-                      <div className="text-xs text-white/60">
-                        Avg: {userTotal.averagePoints}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold">{userTotal.totalPoints}</div>
-                      <div className="text-xs text-white/60">total</div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-          {/* Right Column - Stats & Categories */}
-          <div className="flex flex-col gap-4">
-            {/* Category Champions */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 flex-1">
-              <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-                <Award size={20} />
-                Category Leaders
-              </h2>
-
-              <div className="grid grid-cols-2 gap-3">
-            {Object.entries(categoryLeaders).map(([category, leader]) => {
-              const user = users.find(u => u.id === leader.userId);
-              const categoryLabel = category === 'one21s' ? '1-2-1s' :
-                                   category === 'tyfcb' ? 'TYFCB' :
-                                   category.toUpperCase();
-
-              return (
-                <div
-                  key={category}
-                  className="bg-white/5 rounded-lg p-3 text-center"
-                >
-                  <div className="text-xs font-medium text-white/70 mb-1">
-                    {categoryLabel}
-                  </div>
-                  {user && leader.total > 0 ? (
-                    <>
-                      <div className="text-2xl font-bold text-white">
-                        {leader.total}
-                      </div>
-                      <div className="text-xs text-white/80 truncate">
-                        {user.firstName} {user.lastName}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-white/30 text-sm">—</div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-            {/* Season Stats */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4">
-              <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-                <Star size={20} />
-                Season Stats
-              </h2>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/5 rounded-lg p-3 text-center">
-                  <div className="text-2xl font-bold">
-                    {userTotals.reduce((sum, u) => sum + u.totalPoints, 0)}
-                  </div>
-                  <div className="text-xs text-white/70">Total Points</div>
-                </div>
-                <div className="bg-white/5 rounded-lg p-3 text-center">
-                  <div className="text-2xl font-bold">
-                    {Math.max(...userTotals.map(u => u.bestWeek), 0)}
-                  </div>
-                  <div className="text-xs text-white/70">Best Individual</div>
-                </div>
-                <div className="bg-white/5 rounded-lg p-3 text-center">
-                  <div className="text-2xl font-bold">
-                    {Math.max(...teamTotals.map(t => t.bestWeek), 0)}
-                  </div>
-                  <div className="text-xs text-white/70">Best Team</div>
-                </div>
-                <div className="bg-white/5 rounded-lg p-3 text-center">
-                  <div className="text-2xl font-bold">
-                    {weekCount}/{totalWeeks}
-                  </div>
-                  <div className="text-xs text-white/70">Weeks</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

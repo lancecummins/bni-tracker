@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, Team, Score } from '@/lib/types';
 import { Avatar } from '@/components/Avatar';
 import { Trophy, Zap, TrendingUp, Users, Star } from 'lucide-react';
@@ -49,6 +49,7 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
     total: false
   });
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const timeoutIdsRef = useRef<NodeJS.Timeout[]>([]);
 
   // Update animation state when displayData changes
   useEffect(() => {
@@ -94,24 +95,34 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
 
       let currentDelay = 2000;
       categoriesWithData.forEach((category, index) => {
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           setRevealedStats(prev => ({ ...prev, [category.key]: true }));
 
           const audio = new Audio('/sounds/stat-reveal.mp3');
           audio.volume = 0.5;
           audio.play().catch(err => console.log('Audio play failed:', err));
         }, currentDelay);
+        timeoutIdsRef.current.push(timeoutId);
         currentDelay += 2000;
       });
 
-      setTimeout(() => {
+      const finalTimeoutId = setTimeout(() => {
         setRevealedStats(prev => ({ ...prev, total: true }));
 
         const audio = new Audio('/sounds/total-reveal.mp3');
         audio.volume = 0.6;
         audio.play().catch(err => console.log('Audio play failed:', err));
       }, currentDelay);
+      timeoutIdsRef.current.push(finalTimeoutId);
     }
+
+    return () => {
+      timeoutIdsRef.current.forEach(id => clearTimeout(id));
+      timeoutIdsRef.current = [];
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+    };
   }, [displayData]);
 
 
@@ -230,6 +241,10 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
       (metrics.tyfcb || 0) * (points.tyfcb || 0) +
       (metrics.visitors || 0) * (points.visitors || 0)
     );
+
+    // Calculate delay for total score to appear after bonuses
+    const bonusCount = displayData.score?.customBonuses?.length || 0;
+    const totalScoreDelay = bonusCount > 0 ? 1.2 + bonusCount * 0.1 + 0.3 : 0;
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-12 relative overflow-hidden">
@@ -408,25 +423,7 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
             </AnimatePresence>
           </div>
 
-          {/* Total Score */}
-          <AnimatePresence>
-            {revealedStats.total && (
-              <motion.div
-                key="total-score"
-                initial={{ scale: 0, y: 50 }}
-                animate={{ scale: 1, y: 0 }}
-                transition={{ type: "spring", duration: 0.8 }}
-                className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl p-8 text-center"
-              >
-                <div className="text-2xl text-white/90 mb-2">TOTAL SCORE</div>
-                <div className="text-7xl font-bold text-white">
-                  {total} POINTS
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Custom Bonus Badges - Below total score */}
+          {/* Custom Bonus Badges - Above total score */}
           {revealedStats.total && displayData.score?.customBonuses && displayData.score.customBonuses.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -452,6 +449,24 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
               </div>
             </motion.div>
           )}
+
+          {/* Total Score */}
+          <AnimatePresence>
+            {revealedStats.total && (
+              <motion.div
+                key="total-score"
+                initial={{ scale: 0, y: 50 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: "spring", duration: 0.8, delay: totalScoreDelay }}
+                className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl p-8 text-center"
+              >
+                <div className="text-2xl text-white/90 mb-2">TOTAL SCORE</div>
+                <div className="text-7xl font-bold text-white">
+                  {total} POINTS
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* On-Deck Indicator */}

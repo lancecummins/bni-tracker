@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import {
@@ -23,12 +23,17 @@ import { Team } from '@/lib/types';
 export default function TeamDisplayPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const teamId = params.teamId as string;
+  const sessionIdParam = searchParams.get('sessionId');
 
   const { session: activeSession } = useStaticActiveSession();
   const { teams } = useStaticTeams();
-  const { leaderboard } = useStaticLeaderboard(activeSession?.id || null, false); // Use false to match main display
-  const { standings } = useStaticTeamStandings(activeSession?.id || null, false); // Use false to match main display
+
+  const sessionId = sessionIdParam || activeSession?.id || null;
+
+  const { leaderboard } = useStaticLeaderboard(sessionId, false);
+  const { standings } = useStaticTeamStandings(sessionId, false);
 
   const [team, setTeam] = useState<Team | null>(null);
 
@@ -48,7 +53,11 @@ export default function TeamDisplayPage() {
   const teamStanding = standings.find(s => s.teamId === teamId);
   const bonusPoints = teamStanding?.bonusPoints || 0;
 
-  // Calculate team total (includes bonus)
+  // Get custom bonuses
+  const customBonuses = teamStanding?.customBonuses || [];
+  const customBonusTotal = customBonuses.reduce((sum, b) => sum + b.points, 0);
+
+  // Calculate team total (includes all bonuses)
   const individualTotal = sortedMembers.reduce((sum, member) => sum + member.weeklyPoints, 0);
   const teamTotal = individualTotal + bonusPoints;
 
@@ -88,7 +97,10 @@ export default function TeamDisplayPage() {
         {/* Compact Header */}
         <div className="flex items-center justify-between mb-3 shrink-0">
           <button
-            onClick={() => router.push('/display')}
+            onClick={() => {
+              const url = `/display${sessionIdParam ? `?sessionId=${sessionIdParam}` : ''}`;
+              router.push(url);
+            }}
             className="text-white/70 hover:text-white transition-colors text-sm flex items-center gap-1"
           >
             <ArrowLeft size={16} />
@@ -173,6 +185,27 @@ export default function TeamDisplayPage() {
                     >
                       {category === 'one21s' ? '1-2-1s' : category === 'tyfcb' ? 'TYFCB' : category.toUpperCase()} ✓
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Bonuses */}
+            {customBonuses.length > 0 && (
+              <div className="bg-blue-500/20 rounded-xl p-3 border border-blue-400/50">
+                <h3 className="text-sm font-semibold text-blue-400 mb-2 flex items-center gap-1">
+                  <Award size={16} />
+                  Custom Bonuses
+                </h3>
+                <div className="flex flex-col gap-1">
+                  {customBonuses.map((bonus, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between px-2 py-1 bg-blue-400/20 text-blue-200 rounded text-xs"
+                    >
+                      <span>{bonus.bonusName}</span>
+                      <span className="font-bold text-blue-300">+{bonus.points}</span>
+                    </div>
                   ))}
                 </div>
               </div>

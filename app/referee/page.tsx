@@ -13,11 +13,13 @@ import { db } from '@/lib/firebase/config';
 import { Monitor, Play, Users as UsersIcon, Trophy, Eye, Check, CheckCircle, Gift, BarChart3, Award, X } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import Image from 'next/image';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { shownUsersStore } from '@/lib/utils/revealedUsersStore';
 import { revealedBonusesStore } from '@/lib/utils/revealedBonusesStore';
 import { displayChannel } from '@/lib/utils/displayChannel';
 import { timerChannel } from '@/lib/utils/timerChannel';
+import { clearStaticDataCache } from '@/lib/firebase/hooks/useStaticData';
 
 export default function RefereePage() {
   const { users } = useUsers();
@@ -62,7 +64,7 @@ export default function RefereePage() {
   const [awardBonusTarget, setAwardBonusTarget] = useState<{ type: 'individual' | 'team', user: User, team?: Team } | null>(null);
   const [selectedBonus, setSelectedBonus] = useState<CustomBonus | null>(null);
   const [filterMode, setFilterMode] = useState<'all' | 'shown' | 'not-shown' | 'no-score'>('all');
-  const [sortMode, setSortMode] = useState<'team' | 'name' | 'points' | 'random'>('team');
+  const [sortMode, setSortMode] = useState<'team' | 'name' | 'points' | 'random'>('random');
   const [randomOrder, setRandomOrder] = useState<string[]>([]);
   const [currentUserIndex, setCurrentUserIndex] = useState<number>(0);
 
@@ -363,6 +365,14 @@ export default function RefereePage() {
   const handleFullScoreboard = async () => {
     console.log('handleFullScoreboard called');
 
+    if (!selectedSessionId) {
+      toast.error('Please select a session first');
+      return;
+    }
+
+    // Clear cache to force refresh of updated scores
+    clearStaticDataCache();
+
     // Clear the display to show the main scoreboard
     try {
       await fetch('/api/display', {
@@ -370,6 +380,7 @@ export default function RefereePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'CLEAR_DISPLAY',
+          sessionId: selectedSessionId,
           shownUserIds: Array.from(shownUsersStore.getShownUsers()),
           revealedBonusTeamIds: Array.from(revealedBonusesStore.getRevealedTeams())
         })
@@ -382,10 +393,72 @@ export default function RefereePage() {
     }
   };
 
+  const handleFinalizeWeek = async () => {
+    if (!selectedSession) {
+      toast.error('No session selected');
+      return;
+    }
+
+    if (!confirm('Finalize this week and save team points? This will add weekly points to season totals and award a win to the top team.')) {
+      return;
+    }
+
+    try {
+      const teamStandings = teams.map(team => {
+        const teamScores = scores.filter(score => {
+          const user = users.find(u => u.id === score.userId);
+          return user?.teamId === team.id && !score.isDraft;
+        });
+
+        const weeklyPoints = teamScores.reduce((sum, score) => sum + score.totalPoints, 0);
+        const bonuses = team.id ? getTeamBonuses(team.id) : { total: 0, categories: [] };
+        const bonusPoints = bonuses.total;
+        const weeklyTotal = weeklyPoints + bonusPoints;
+
+        return {
+          team,
+          weeklyPoints,
+          bonusPoints,
+          weeklyTotal
+        };
+      }).sort((a, b) => b.weeklyTotal - a.weeklyTotal);
+
+      const winningTeam = teamStandings[0];
+
+      if (!winningTeam || teamStandings.length === 0) {
+        toast.error('No teams found');
+        return;
+      }
+
+      for (const standing of teamStandings) {
+        if (!standing.team.id) continue;
+
+        const isWinner = standing.team.id === winningTeam.team.id;
+        const currentTotalPoints = standing.team.totalPoints || 0;
+        const currentWeeklyWins = standing.team.weeklyWins || 0;
+
+        await updateDoc(doc(db, 'teams', standing.team.id), {
+          totalPoints: currentTotalPoints + standing.weeklyTotal,
+          weeklyWins: isWinner ? currentWeeklyWins + 1 : currentWeeklyWins
+        });
+      }
+
+      // Mark session as closed
+      await updateDoc(doc(db, 'sessions', selectedSession.id!), {
+        status: 'closed',
+        closedAt: Timestamp.now()
+      });
+
+      toast.success(`Week finalized! ${winningTeam.team.name} wins with ${winningTeam.weeklyTotal} points!`);
+    } catch (error) {
+      console.error('Error finalizing week:', error);
+      toast.error('Failed to finalize week');
+    }
+  };
+
   const handleCelebrateWinningTeam = async () => {
     console.log('handleCelebrateWinningTeam called');
 
-    // Find the winning team (highest points)
     const teamStandings = teams.map(team => {
       const teamScores = scores.filter(score => {
         const user = users.find(u => u.id === score.userId);
@@ -414,7 +487,6 @@ export default function RefereePage() {
       return;
     }
 
-    // Send celebration to display
     try {
       await fetch('/api/display', {
         method: 'POST',
@@ -445,6 +517,9 @@ export default function RefereePage() {
     ];
 
     const displayPoints = bonusPoints || bonuses.total;
+
+    // Mark this team's bonuses as revealed
+    revealedBonusesStore.revealTeamBonus(teamId);
 
     // Send bonus details to display
     try {
@@ -547,6 +622,22 @@ export default function RefereePage() {
             updatedAt: Timestamp.now(),
           });
 
+          // Clear cache so display shows updated totals immediately
+          clearStaticDataCache();
+
+          // Instantly display the bonus
+          await fetch('/api/display', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'DISPLAY_CUSTOM_BONUS',
+              bonusName: selectedBonus.name,
+              bonusPoints: selectedBonus.points,
+              targetName: `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`,
+              isTeamBonus: false,
+            })
+          });
+
           toast.success(`Awarded ${selectedBonus.name} (+${selectedBonus.points} pts) to ${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`);
         } else {
           toast.error('No score found for this user');
@@ -640,14 +731,16 @@ export default function RefereePage() {
           {/* Title and Status */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <Image
-                src="/bni-game-logo.png"
-                alt="BNI Game"
-                width={60}
-                height={60}
-                className="object-contain"
-                priority
-              />
+              <Link href="/admin/dashboard">
+                <Image
+                  src="/bni-game-logo.png"
+                  alt="BNI Game"
+                  width={60}
+                  height={60}
+                  className="object-contain cursor-pointer hover:opacity-80 transition-opacity"
+                  priority
+                />
+              </Link>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
                   {selectedSession?.name || 'Game Referee'}
@@ -676,31 +769,6 @@ export default function RefereePage() {
             </div>
           </div>
 
-          {/* Timer Controls */}
-          <div className="flex items-center justify-between mb-3 bg-gradient-to-r from-blue-100 to-purple-100 p-3 rounded-lg">
-            <span className="text-sm font-semibold text-gray-700">Logo Timer Controls</span>
-            <div className="flex gap-2">
-              <button
-                onClick={handleTimerStart}
-                className="px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700"
-              >
-                Start
-              </button>
-              <button
-                onClick={handleTimerPause}
-                className="px-3 py-1.5 bg-yellow-600 text-white rounded text-xs font-medium hover:bg-yellow-700"
-              >
-                Pause
-              </button>
-              <button
-                onClick={handleTimerReset}
-                className="px-3 py-1.5 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-
           {/* Session Selector */}
           <div className="mb-3">
             <select
@@ -719,22 +787,132 @@ export default function RefereePage() {
           </div>
 
           {/* Main Control Buttons */}
-          <div className="mb-3 space-y-2 mt-3">
+          <div className="mb-3 mt-3 grid grid-cols-4 gap-1">
             <button
               onClick={handleFullScoreboard}
-              className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-base font-medium"
+              className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium"
             >
-              <BarChart3 size={20} />
-              Show Full Scoreboard
+              <BarChart3 size={18} />
+              <span className="text-center leading-tight">Show Full Scoreboard</span>
             </button>
             <button
               onClick={handleCelebrateWinningTeam}
-              className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-base font-medium"
+              className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-xs font-medium"
             >
-              <Trophy size={20} />
-              Celebrate Winning Team
+              <Trophy size={18} />
+              <span className="text-center leading-tight">Celebrate Winning Team</span>
+            </button>
+            <button
+              onClick={handleFinalizeWeek}
+              className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs font-medium"
+            >
+              <CheckCircle size={18} />
+              <span className="text-center leading-tight">Finalize Week</span>
+            </button>
+            <button
+              onClick={async () => {
+                await fetch('/api/display', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ type: 'SHOW_SEASON_STANDINGS' })
+                });
+                toast.success('Showing season standings');
+              }}
+              className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs font-medium"
+            >
+              <Award size={18} />
+              <span className="text-center leading-tight">Show Season Standings</span>
             </button>
           </div>
+
+          {/* Team Standings Summary */}
+          {selectedSessionId && teams.length > 0 && (
+            <div className="mb-3 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-3 border-2 border-blue-200">
+              <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1">
+                <Trophy size={16} className="text-yellow-600" />
+                Team Standings
+              </h3>
+              <div className="grid grid-cols-4 gap-2">
+                {teams
+                  .map(team => {
+                    const teamMembers = users.filter(u => u.teamId === team.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
+                    const teamScores = scores.filter(s => teamMembers.some(m => m.id === s.userId));
+
+                    const memberPoints = teamScores.reduce((sum, score) => sum + (score.totalPoints || 0), 0);
+                    const bonuses = getTeamBonuses(team.id!);
+                    const totalPoints = memberPoints + bonuses.total;
+
+                    return {
+                      team,
+                      memberPoints,
+                      bonusPoints: bonuses.total,
+                      totalPoints,
+                      memberCount: teamMembers.length
+                    };
+                  })
+                  .sort((a, b) => b.totalPoints - a.totalPoints)
+                  .map((standing, index) => {
+                    const isBonusRevealed = revealedBonusTeamIds.has(standing.team.id!) || selectedSession?.status === 'closed';
+                    return (
+                    <div
+                      key={standing.team.id}
+                      className={`flex flex-col p-2 rounded-lg relative ${
+                        index === 0 ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-white border border-gray-200'
+                      }`}
+                    >
+                      {standing.bonusPoints > 0 && !isBonusRevealed && selectedSession?.status !== 'closed' && (
+                        <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                          HIDDEN
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1 mb-1">
+                        <span className={`text-sm font-bold ${index === 0 ? 'text-yellow-600' : 'text-gray-500'}`}>
+                          #{index + 1}
+                        </span>
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: standing.team.color || '#3B82F6' }}
+                        />
+                        <span className="font-semibold text-gray-800 text-xs truncate">
+                          {standing.team.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">Members:</span>
+                        <span className="font-semibold text-gray-700">{standing.memberPoints}</span>
+                      </div>
+                      {standing.bonusPoints > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Bonus:</span>
+                          <span className={`font-semibold ${isBonusRevealed ? 'text-green-600' : 'text-orange-500'}`}>
+                            +{standing.bonusPoints} {!isBonusRevealed && '👁️'}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-xs mt-1 pt-1 border-t border-gray-300">
+                        <span className="text-gray-600 font-medium">Total:</span>
+                        <span className={`font-bold ${index === 0 ? 'text-yellow-600' : 'text-gray-900'}`}>
+                          {standing.totalPoints}
+                        </span>
+                      </div>
+                      {standing.bonusPoints > 0 && (
+                        <button
+                          onClick={() => handleDisplayTeamBonus(standing.team.id!)}
+                          className={`mt-2 w-full px-2 py-1 text-xs font-medium rounded transition-colors ${
+                            isBonusRevealed
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-orange-500 text-white hover:bg-orange-600'
+                          }`}
+                        >
+                          {isBonusRevealed ? '✓ Shown' : 'Display Bonus'}
+                        </button>
+                      )}
+                    </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           {/* Filter and Sort Controls */}
           <div className="grid grid-cols-2 gap-2 mb-2">
@@ -904,6 +1082,14 @@ export default function RefereePage() {
                             )}
                           </div>
                           <div className="flex items-center gap-2 text-xs">
+                            {team && (
+                              <span
+                                className="px-1.5 py-0.5 rounded font-medium"
+                                style={{ backgroundColor: team.color + '20', color: team.color }}
+                              >
+                                {team.name}
+                              </span>
+                            )}
                             <span className={`px-1.5 py-0.5 rounded ${
                               scoreStatus === 'published' ? 'bg-green-100 text-green-700' :
                               scoreStatus === 'draft' ? 'bg-yellow-100 text-yellow-700' :
@@ -921,20 +1107,20 @@ export default function RefereePage() {
                       </div>
 
                       {/* Action Buttons Row */}
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-1">
                         <button
                           onClick={() => handleDisplayUser(member, teamMembers.indexOf(member))}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                          className="flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
                         >
-                          <Eye size={16} />
+                          <Eye size={14} />
                           Show User
                         </button>
                         <button
                           onClick={() => handleDisplayStats(member, teamMembers.indexOf(member))}
                           disabled={scoreStatus === 'missing'}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
+                          className="flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs"
                         >
-                          <Play size={16} />
+                          <Play size={14} />
                           Display Stats
                         </button>
                         <button
@@ -942,9 +1128,9 @@ export default function RefereePage() {
                             setAwardBonusTarget({ type: 'individual', user: member, team: teams.find(t => t.id === member.teamId) });
                             setShowAwardBonusModal(true);
                           }}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                          className="flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs"
                         >
-                          <Award size={16} />
+                          <Award size={14} />
                           Bonus
                         </button>
                       </div>
@@ -1036,20 +1222,20 @@ export default function RefereePage() {
                   </div>
 
                   {/* Action Buttons Row */}
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-1">
                     <button
                       onClick={() => handleDisplayUser(member, index)}
-                      className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                      className="flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
                     >
-                      <Eye size={16} />
+                      <Eye size={14} />
                       Show User
                     </button>
                     <button
                       onClick={() => handleDisplayStats(member, index)}
                       disabled={scoreStatus === 'missing'}
-                      className="flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
+                      className="flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs"
                     >
-                      <Play size={16} />
+                      <Play size={14} />
                       Display Stats
                     </button>
                     <button
@@ -1057,9 +1243,9 @@ export default function RefereePage() {
                         setAwardBonusTarget({ type: 'individual', user: member, team: memberTeam });
                         setShowAwardBonusModal(true);
                       }}
-                      className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                      className="flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs"
                     >
-                      <Award size={16} />
+                      <Award size={14} />
                       Bonus
                     </button>
                   </div>

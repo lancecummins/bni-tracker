@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useStaticActiveSession, useStaticSettings, useStaticSeasonSessions } from '@/lib/firebase/hooks/useStaticData';
+import { useStaticActiveSession, useStaticSettings, useStaticSeasonSessions, clearStaticDataCache } from '@/lib/firebase/hooks/useStaticData';
 import { sessionService, scoreService } from '@/lib/firebase/services';
 import {
   useStaticLeaderboard,
@@ -24,7 +24,8 @@ import RefereeDisplay from './referee/page';
 
 
 interface DisplayData {
-  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD' | 'DISPLAY_TEAM_BONUS' | 'DISPLAY_CUSTOM_BONUS' | 'CELEBRATE_WINNING_TEAM';
+  type: 'DISPLAY_USER' | 'DISPLAY_STATS' | 'DISPLAY_TEAM_LEADERBOARD' | 'DISPLAY_TEAM_BONUS' | 'DISPLAY_CUSTOM_BONUS' | 'CELEBRATE_WINNING_TEAM' | 'SHOW_SEASON_STANDINGS';
+  sessionId?: string;
   user?: User;
   team?: Team;
   score?: Score;
@@ -71,11 +72,13 @@ function DisplayPageContent() {
 
   const { leaderboard, loading: leaderboardLoading } = useStaticLeaderboard(
     displaySessionId,
-    false // Show all scores (including drafts) since referee controls display
+    false, // Show all scores (including drafts) since referee controls display
+    refreshKey
   );
   const { standings, loading: standingsLoading } = useStaticTeamStandings(
     displaySessionId,
-    false // Show all scores (including drafts) since referee controls display
+    false, // Show all scores (including drafts) since referee controls display
+    refreshKey
   );
 
   // Debug logging
@@ -154,6 +157,7 @@ function DisplayPageContent() {
   const [nextUser, setNextUser] = useState<User | null>(null);
   const [nextUserTeam, setNextUserTeam] = useState<Team | null>(null);
   const [themeAudio, setThemeAudio] = useState<HTMLAudioElement | null>(null);
+  const celebrationAudioRef = useRef<HTMLAudioElement | null>(null);
 
 
   // Listen for referee messages from multiple sources
@@ -199,23 +203,34 @@ function DisplayPageContent() {
           if (bonusRevealRef.current) {
             bonusRevealRef.current.play().catch(err => console.log('Bonus sound failed:', err));
           }
-          // Auto-clear after 5 seconds
-          setTimeout(() => {
-            setDisplayData(null);
-          }, 5000);
         } else if (data.type === 'DISPLAY_CUSTOM_BONUS') {
           setDisplayData(data);
           if (bonusRevealRef.current) {
             bonusRevealRef.current.play().catch(err => console.log('Bonus sound failed:', err));
           }
-          // Auto-clear after 5 seconds
-          setTimeout(() => {
-            setDisplayData(null);
-          }, 5000);
         } else if (data.type === 'CLEAR_DISPLAY') {
+          console.log('[Display] CLEAR_DISPLAY received with sessionId:', data.sessionId);
+
+          // Clear cache to get fresh data with updated bonuses
+          clearStaticDataCache();
+
+          // Force refresh of all data
+          setRefreshKey(prev => prev + 1);
+
           setDisplayData(null); // Clear display to show default
           setNextUser(null);
           setNextUserTeam(null);
+
+          // Update URL with sessionId if provided
+          if (data.sessionId) {
+            console.log('[Display] Updating session to:', data.sessionId);
+            const url = new URL(window.location.href);
+            url.searchParams.set('sessionId', data.sessionId);
+            window.history.pushState({}, '', url);
+            setSelectedSession(data.sessionId);
+          }
+        } else if (data.type === 'SHOW_SEASON_STANDINGS') {
+          router.push('/display/season');
         } else if (data.type) {
           setDisplayData(data);
         }
@@ -347,10 +362,18 @@ function DisplayPageContent() {
   // Play/pause theme music based on displayData state
   useEffect(() => {
     if (displayData) {
+      // Pause theme music when showing any other screen
       if (themeAudio) {
         themeAudio.pause();
+        themeAudio.currentTime = 0; // Reset to beginning
+      }
+      // Also pause celebration audio if switching away
+      if (celebrationAudioRef.current) {
+        celebrationAudioRef.current.pause();
+        celebrationAudioRef.current.currentTime = 0;
       }
     } else {
+      // Play theme music when showing scoreboard
       if (!themeAudio) {
         const audio = new Audio('/sounds/bni-game-theme.mp3');
         audio.volume = 0.3;
@@ -367,6 +390,12 @@ function DisplayPageContent() {
     return () => {
       if (themeAudio) {
         themeAudio.pause();
+      }
+      if (celebrationAudioRef.current) {
+        celebrationAudioRef.current.pause();
+      }
+      if (bonusRevealRef.current) {
+        bonusRevealRef.current.pause();
       }
     };
   }, [themeAudio]);
@@ -608,9 +637,13 @@ function DisplayPageContent() {
               duration: 1
             }}
             onAnimationStart={() => {
+              if (celebrationAudioRef.current) {
+                celebrationAudioRef.current.pause();
+              }
               const audio = new Audio('/sounds/celebrate-winner.mp3');
               audio.volume = 0.6;
               audio.play().catch(err => console.log('Audio play failed:', err));
+              celebrationAudioRef.current = audio;
             }}
             className="w-1/2 flex flex-col items-center justify-center p-8 z-10"
           >
@@ -965,7 +998,10 @@ function DisplayPageContent() {
                       ? 'ring-2 ring-green-400 ring-opacity-50'
                       : ''
                   }`}
-                  onClick={() => router.push(`/display/team/${team.teamId}`)}
+                  onClick={() => {
+                    const url = `/display/team/${team.teamId}${selectedSession ? `?sessionId=${selectedSession}` : ''}`;
+                    router.push(url);
+                  }}
                 >
                   {/* Colored bar at top */}
                   <div className="h-3" style={{ backgroundColor: team.team.color || '#3B82F6' }} />

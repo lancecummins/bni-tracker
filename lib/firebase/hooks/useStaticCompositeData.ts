@@ -6,16 +6,17 @@ import {
   useStaticTeams,
   useStaticSessionScores,
   useStaticActiveSession,
+  useStaticSession,
   useStaticSettings
 } from './useStaticData';
 import { scoreService } from '@/lib/firebase/services';
 import { revealedUsersStore } from '@/lib/utils/revealedUsersStore';
 import { revealedBonusesStore } from '@/lib/utils/revealedBonusesStore';
 
-export function useStaticLeaderboard(sessionId: string | null, usePublished: boolean = false) {
+export function useStaticLeaderboard(sessionId: string | null, usePublished: boolean = false, refreshKey?: number) {
   const { users, loading: usersLoading } = useStaticUsers();
   const { teams, loading: teamsLoading } = useStaticTeams();
-  const { scores, loading: scoresLoading } = useStaticSessionScores(sessionId);
+  const { scores, loading: scoresLoading } = useStaticSessionScores(sessionId, refreshKey);
   const { settings, loading: settingsLoading } = useStaticSettings();
   const [revealedUserIds, setRevealedUserIds] = useState<Set<string>>(new Set());
 
@@ -105,17 +106,17 @@ export function useStaticLeaderboard(sessionId: string | null, usePublished: boo
     });
 
     return entries;
-  }, [users, teams, scores, settings, sessionId, loading, usePublished, revealedUserIds]);
+  }, [users, teams, scores, settings, sessionId, loading, usePublished, revealedUserIds, refreshKey]);
 
   return { leaderboard, loading };
 }
 
-export function useStaticTeamStandings(sessionId: string | null, usePublished: boolean = false) {
+export function useStaticTeamStandings(sessionId: string | null, usePublished: boolean = false, refreshKey?: number) {
   const { teams, loading: teamsLoading } = useStaticTeams();
   const { users, loading: usersLoading } = useStaticUsers();
-  const { scores, loading: scoresLoading } = useStaticSessionScores(sessionId);
+  const { scores, loading: scoresLoading } = useStaticSessionScores(sessionId, refreshKey);
   const { settings, loading: settingsLoading } = useStaticSettings();
-  const { session, loading: sessionLoading } = useStaticActiveSession();
+  const { session, loading: sessionLoading } = useStaticSession(sessionId);
   const [revealedUserIds, setRevealedUserIds] = useState<Set<string>>(new Set());
   const [revealedBonusTeamIds, setRevealedBonusTeamIds] = useState<Set<string>>(new Set());
 
@@ -178,11 +179,11 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
       let bonusPoints = 0;
       const bonusCategories: string[] = [];
       let customBonuses: { bonusName: string; points: number; teamId: string }[] = [];
-      // Check if bonuses have been revealed by referee
-      const teamBonusRevealed = team.id && revealedBonusTeamIds.has(team.id);
+      // Check if bonuses have been revealed by referee OR if session is closed
+      const teamBonusRevealed = team.id && (revealedBonusTeamIds.has(team.id) || session?.status === 'closed');
 
       // Calculate bonuses based on ALL team members (not just revealed ones)
-      // But only show them if referee has revealed them
+      // But only show them if referee has revealed them OR session is finalized
       if (settings && allTeamMembers.length > 0 && teamBonusRevealed) {
         const categories = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
 
@@ -249,7 +250,7 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
     });
 
     return teamStandings;
-  }, [teams, users, scores, settings, sessionId, loading, usePublished, revealedUserIds, revealedBonusTeamIds, session]);
+  }, [teams, users, scores, settings, sessionId, loading, usePublished, revealedUserIds, revealedBonusTeamIds, session, refreshKey]);
 
   return { standings, loading };
 }

@@ -22,6 +22,17 @@ export default function LogoPage() {
       buzzerRef.current = new Audio('/sounds/time-up.mp3');
       buzzerRef.current.volume = 0.7;
     }
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (buzzerRef.current) {
+        buzzerRef.current.pause();
+        buzzerRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {

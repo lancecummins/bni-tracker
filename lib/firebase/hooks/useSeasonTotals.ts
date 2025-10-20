@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Score, Session } from '@/lib/types';
 import { scoreService } from '@/lib/firebase/services';
 import { useSeasonSessions } from './useSessions';
+import { useUsers } from './useUsers';
+import { useSettings } from './useSettings';
 
 interface UserSeasonTotal {
   userId: string;
@@ -31,6 +33,8 @@ export function useSeasonTotals(seasonId: string | null) {
   const [allScores, setAllScores] = useState<Map<string, Score[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const { sessions } = useSeasonSessions(seasonId);
+  const { users } = useUsers();
+  const { settings } = useSettings();
 
   useEffect(() => {
     if (!seasonId || sessions.length === 0) {
@@ -113,13 +117,49 @@ export function useSeasonTotals(seasonId: string | null) {
   }, [allScores]);
 
   const teamTotals = useMemo(() => {
+    if (!settings || !users) return [];
+
     const totalsMap = new Map<string, TeamSeasonTotal>();
     const weeklyTeamWinners = new Map<string, string>(); // sessionId -> winningTeamId
 
-    // First pass: calculate weekly totals and determine winners
+    // Helper function to calculate team bonuses for a session
+    const calculateTeamBonuses = (teamId: string, sessionScores: Score[], session: Session) => {
+      let bonusPoints = 0;
+
+      const teamMembers = users.filter(u => u.teamId === teamId && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
+      const teamScores = sessionScores.filter(s => teamMembers.some(m => m.id === s.userId));
+
+      // "All In" bonuses - only if all team members have scores
+      if (teamScores.length === teamMembers.length && teamMembers.length > 0) {
+        const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
+
+        categoryList.forEach(category => {
+          const allMembersHaveCategory = teamMembers.every(member => {
+            const score = sessionScores.find(s => s.userId === member.id);
+            return score && score.metrics[category] > 0;
+          });
+
+          if (allMembersHaveCategory && settings.bonusValues) {
+            bonusPoints += settings.bonusValues[category];
+          }
+        });
+      }
+
+      // Custom team bonuses from session
+      const customBonuses = session.teamCustomBonuses?.filter(b => b.teamId === teamId) || [];
+      bonusPoints += customBonuses.reduce((sum, b) => sum + b.points, 0);
+
+      return bonusPoints;
+    };
+
+    // First pass: calculate weekly totals (with bonuses) and determine winners
     allScores.forEach((sessionScores, sessionId) => {
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session) return;
+
       const weeklyTeamPoints = new Map<string, number>();
 
+      // Calculate member points for each team
       sessionScores.forEach((score) => {
         if (score.teamId) {
           const current = weeklyTeamPoints.get(score.teamId) || 0;
@@ -127,7 +167,13 @@ export function useSeasonTotals(seasonId: string | null) {
         }
       });
 
-      // Find weekly winner
+      // Add team bonuses to weekly totals
+      weeklyTeamPoints.forEach((memberPoints, teamId) => {
+        const bonusPoints = calculateTeamBonuses(teamId, sessionScores, session);
+        weeklyTeamPoints.set(teamId, memberPoints + bonusPoints);
+      });
+
+      // Find weekly winner (based on total including bonuses)
       let maxPoints = 0;
       let winningTeamId = '';
       weeklyTeamPoints.forEach((points, teamId) => {
@@ -144,8 +190,12 @@ export function useSeasonTotals(seasonId: string | null) {
 
     // Second pass: aggregate season totals
     allScores.forEach((sessionScores, sessionId) => {
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session) return;
+
       const weeklyTeamPoints = new Map<string, number>();
 
+      // Calculate member points for each team
       sessionScores.forEach((score) => {
         if (score.teamId) {
           const current = weeklyTeamPoints.get(score.teamId) || 0;
@@ -153,7 +203,7 @@ export function useSeasonTotals(seasonId: string | null) {
         }
       });
 
-      weeklyTeamPoints.forEach((points, teamId) => {
+      weeklyTeamPoints.forEach((memberPoints, teamId) => {
         let teamTotal = totalsMap.get(teamId);
 
         if (!teamTotal) {
@@ -168,9 +218,13 @@ export function useSeasonTotals(seasonId: string | null) {
           totalsMap.set(teamId, teamTotal);
         }
 
-        teamTotal.totalPoints += points;
+        // Add bonuses to get total weekly points
+        const bonusPoints = calculateTeamBonuses(teamId, sessionScores, session);
+        const weeklyTotal = memberPoints + bonusPoints;
+
+        teamTotal.totalPoints += weeklyTotal;
         teamTotal.weekCount += 1;
-        teamTotal.bestWeek = Math.max(teamTotal.bestWeek, points);
+        teamTotal.bestWeek = Math.max(teamTotal.bestWeek, weeklyTotal);
 
         // Check if this team won this week
         if (weeklyTeamWinners.get(sessionId) === teamId) {
@@ -188,12 +242,94 @@ export function useSeasonTotals(seasonId: string | null) {
 
     return Array.from(totalsMap.values())
       .sort((a, b) => b.totalPoints - a.totalPoints);
-  }, [allScores]);
+  }, [allScores, sessions, users, settings]);
+
+  // Calculate weekly breakdown for charts
+  const weeklyData = useMemo(() => {
+    if (!settings || !users || sessions.length === 0) return [];
+
+    const weeksData: Array<{
+      weekNumber: number;
+      weekName: string;
+      totalTeamPoints: number;
+      [key: string]: number | string;
+    }> = [];
+
+    // Sort sessions by week number
+    const sortedSessions = [...sessions]
+      .filter(s => s.status !== 'draft' && !s.isArchived)
+      .sort((a, b) => a.weekNumber - b.weekNumber);
+
+    sortedSessions.forEach((session) => {
+      if (!session.id) return;
+
+      const sessionScores = allScores.get(session.id) || [];
+      const weekData: any = {
+        weekNumber: session.weekNumber,
+        weekName: `Week ${session.weekNumber}`,
+        totalTeamPoints: 0,
+      };
+
+      // Calculate team points for this week
+      const weeklyTeamPoints = new Map<string, number>();
+
+      sessionScores.forEach((score) => {
+        if (score.teamId) {
+          const current = weeklyTeamPoints.get(score.teamId) || 0;
+          weeklyTeamPoints.set(score.teamId, current + score.totalPoints);
+        }
+      });
+
+      // Add team bonuses
+      weeklyTeamPoints.forEach((memberPoints, teamId) => {
+        let bonusPoints = 0;
+        const teamMembers = users.filter(u => u.teamId === teamId && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
+        const teamScores = sessionScores.filter(s => teamMembers.some(m => m.id === s.userId));
+
+        if (teamScores.length === teamMembers.length && teamMembers.length > 0) {
+          const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
+          categoryList.forEach(category => {
+            const allMembersHaveCategory = teamMembers.every(member => {
+              const score = sessionScores.find(s => s.userId === member.id);
+              return score && score.metrics[category] > 0;
+            });
+            if (allMembersHaveCategory && settings.bonusValues) {
+              bonusPoints += settings.bonusValues[category];
+            }
+          });
+        }
+
+        const customBonuses = session.teamCustomBonuses?.filter(b => b.teamId === teamId) || [];
+        bonusPoints += customBonuses.reduce((sum, b) => sum + b.points, 0);
+
+        const totalPoints = memberPoints + bonusPoints;
+        weeklyTeamPoints.set(teamId, totalPoints);
+      });
+
+      // Sum all team points for combined total
+      let totalCombinedPoints = 0;
+      weeklyTeamPoints.forEach((points) => {
+        totalCombinedPoints += points;
+      });
+
+      weekData.totalTeamPoints = totalCombinedPoints;
+
+      // Add individual user points
+      sessionScores.forEach((score) => {
+        weekData[score.userId] = score.totalPoints;
+      });
+
+      weeksData.push(weekData);
+    });
+
+    return weeksData;
+  }, [allScores, sessions, users, settings]);
 
   return {
     userTotals,
     teamTotals,
     loading,
     weekCount: allScores.size,
+    weeklyData,
   };
 }

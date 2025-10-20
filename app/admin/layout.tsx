@@ -15,6 +15,7 @@ import {
   CheckSquare,
   Upload,
   Link as LinkIcon,
+  Eye,
 } from 'lucide-react';
 import { useAuth } from '@/lib/firebase/hooks/useAuth';
 import { useUsers } from '@/lib/firebase/hooks/useUsers';
@@ -113,6 +114,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               );
             })}
             <hr className="my-4" />
+            <Link
+              href="/referee"
+              target="_blank"
+              className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <Eye size={20} />
+              <span className="font-medium">Referee</span>
+            </Link>
             <Link
               href="/display"
               target="_blank"

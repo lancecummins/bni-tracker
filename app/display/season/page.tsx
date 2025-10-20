@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowLeft } from 'lucide-react';
 import { Team } from '@/lib/types';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import Image from 'next/image';
 
@@ -21,40 +21,35 @@ export default function SeasonStandingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadTeamStats = async () => {
-      try {
-        setLoading(true);
+    setLoading(true);
 
-        // Get all teams
-        const teamsSnapshot = await getDocs(collection(db, 'teams'));
-        const teamsData = teamsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Team));
+    const unsubscribe = onSnapshot(collection(db, 'teams'), (snapshot) => {
+      const teamsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Team));
 
-        // Sort by weekly wins first, then by total points
-        const sortedTeams = teamsData
-          .map(team => ({
-            team,
-            weeklyWins: team.weeklyWins || 0,
-            totalPoints: team.totalPoints || 0
-          }))
-          .sort((a, b) => {
-            if (b.weeklyWins !== a.weeklyWins) {
-              return b.weeklyWins - a.weeklyWins;
-            }
-            return b.totalPoints - a.totalPoints;
-          });
+      const sortedTeams = teamsData
+        .map(team => ({
+          team,
+          weeklyWins: team.weeklyWins || 0,
+          totalPoints: team.totalPoints || 0
+        }))
+        .sort((a, b) => {
+          if (b.weeklyWins !== a.weeklyWins) {
+            return b.weeklyWins - a.weeklyWins;
+          }
+          return b.totalPoints - a.totalPoints;
+        });
 
-        setTeams(sortedTeams);
-      } catch (error) {
-        console.error('Error loading team stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      setTeams(sortedTeams);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error loading team stats:', error);
+      setLoading(false);
+    });
 
-    loadTeamStats();
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
