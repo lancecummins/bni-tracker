@@ -177,6 +177,7 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
 
       let bonusPoints = 0;
       const bonusCategories: string[] = [];
+      let customBonuses: { bonusName: string; points: number; teamId: string }[] = [];
       // Check if bonuses have been revealed by referee
       const teamBonusRevealed = team.id && revealedBonusTeamIds.has(team.id);
 
@@ -200,8 +201,8 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
 
         // Add custom team bonuses
         if (session?.teamCustomBonuses) {
-          const teamCustomBonuses = session.teamCustomBonuses.filter(b => b.teamId === team.id);
-          bonusPoints += teamCustomBonuses.reduce((sum, b) => sum + b.points, 0);
+          customBonuses = session.teamCustomBonuses.filter(b => b.teamId === team.id);
+          bonusPoints += customBonuses.reduce((sum, b) => sum + b.points, 0);
         }
       }
 
@@ -230,6 +231,7 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
         weeklyPoints,
         bonusPoints,
         bonusCategories,
+        customBonuses,
         totalPoints: 0, // Would need cumulative calculation
         weeklyWins: 0, // Would need historical calculation
         position: 0,

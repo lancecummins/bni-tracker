@@ -39,6 +39,7 @@ interface DisplayData {
   winningTeam?: any;
   teamName?: string;
   teamColor?: string;
+  teamLogoUrl?: string;
   bonusTotal?: number;
   bonusCategories?: string[];
   // For custom bonus
@@ -387,6 +388,25 @@ function DisplayPageContent() {
             }}
             className="text-center max-w-2xl mx-auto p-8"
           >
+            {/* Team Logo */}
+            {displayData.teamLogoUrl && (
+              <motion.div
+                initial={{ y: -50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="mb-8 flex justify-center"
+              >
+                <div className="relative w-64 h-64">
+                  <Image
+                    src={displayData.teamLogoUrl}
+                    alt={`${displayData.teamName} logo`}
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              </motion.div>
+            )}
+
             {/* Team Name */}
             <div
               className="inline-block px-8 py-4 rounded-xl mb-8"
@@ -548,13 +568,39 @@ function DisplayPageContent() {
       const { winningTeam } = displayData;
 
       return (
-        <div className="h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white flex items-center justify-center relative overflow-hidden">
+        <div className="h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white flex relative overflow-hidden">
           {/* Celebration Background Effects */}
           <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 via-purple-900 to-blue-900" />
 
+          {/* Left Half - Team Logo */}
           <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            initial={{ x: -100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{
+              type: "spring",
+              stiffness: 100,
+              damping: 20,
+              delay: 0.2
+            }}
+            className="w-1/2 flex items-center justify-center p-12 z-10"
+          >
+            {winningTeam.team.logoUrl && (
+              <div className="relative w-full h-full max-w-2xl max-h-2xl">
+                <Image
+                  src={winningTeam.team.logoUrl}
+                  alt={`${winningTeam.team.name} logo`}
+                  fill
+                  className="object-contain drop-shadow-2xl"
+                  priority
+                />
+              </div>
+            )}
+          </motion.div>
+
+          {/* Right Half - Content */}
+          <motion.div
+            initial={{ x: 100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
             transition={{
               type: "spring",
               stiffness: 100,
@@ -566,21 +612,21 @@ function DisplayPageContent() {
               audio.volume = 0.6;
               audio.play().catch(err => console.log('Audio play failed:', err));
             }}
-            className="text-center max-w-6xl mx-auto p-8 z-10"
+            className="w-1/2 flex flex-col items-center justify-center p-8 z-10"
           >
-            {/* Giant Trophy */}
+            {/* Trophy */}
             <motion.div
-              initial={{ y: -100, scale: 0 }}
-              animate={{ y: 0, scale: 1 }}
+              initial={{ y: -100, scale: 0, rotate: -180 }}
+              animate={{ y: 0, scale: 1, rotate: 0 }}
               transition={{
                 type: "spring",
                 stiffness: 200,
                 damping: 15,
-                delay: 0.2
+                delay: 0.4
               }}
               className="mb-8"
             >
-              <Trophy className="mx-auto h-48 w-48 text-yellow-400 drop-shadow-2xl" />
+              <Trophy className="h-32 w-32 text-yellow-400 drop-shadow-2xl mx-auto" />
             </motion.div>
 
             {/* Huge Team Name */}
@@ -591,32 +637,96 @@ function DisplayPageContent() {
                 type: "spring",
                 stiffness: 150,
                 damping: 20,
-                delay: 0.4
+                delay: 0.5
               }}
-              className="mb-12"
+              className="mb-6 text-center"
             >
               <h1
-                className="text-8xl font-bold mb-4 drop-shadow-2xl"
+                className="text-6xl font-bold mb-3 drop-shadow-2xl"
                 style={{ color: winningTeam.team.color || '#FFD700' }}
               >
                 {winningTeam.team.name}
               </h1>
-              <h2 className="text-6xl font-bold text-yellow-400 drop-shadow-lg">
+              <h2 className="text-5xl font-bold text-yellow-400 drop-shadow-lg">
                 CHAMPIONS!
               </h2>
-              <div className="mt-4">
-                <span className="text-4xl font-bold text-white drop-shadow-lg">
+              <div className="mt-3">
+                <span className="text-3xl font-bold text-white drop-shadow-lg">
                   {winningTeam.totalPoints} Points
                 </span>
               </div>
             </motion.div>
+
+            {/* Team Bonuses */}
+            {(winningTeam.bonusCategories?.length > 0 || winningTeam.customBonuses?.length > 0) && (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.6 }}
+                className="mb-6"
+              >
+                <h3 className="text-2xl font-bold text-white mb-3 drop-shadow-lg">Team Bonuses</h3>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {/* Built-in "All In" bonuses */}
+                  {winningTeam.bonusCategories?.map((category: string, index: number) => {
+                    const displayName = category === 'one21s' ? '1-2-1s' :
+                                        category === 'tyfcb' ? 'TYFCB' :
+                                        category.charAt(0).toUpperCase() + category.slice(1);
+                    const categoryPoints = settings?.bonusValues?.[category as keyof typeof settings.bonusValues] || 0;
+
+                    return (
+                      <motion.div
+                        key={category}
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 200,
+                          damping: 15,
+                          delay: 0.7 + index * 0.1
+                        }}
+                        className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg px-4 py-2 shadow-xl border border-green-300"
+                      >
+                        <div className="text-center">
+                          <div className="text-xs text-green-100 font-semibold">All In</div>
+                          <div className="text-lg font-bold text-white">{displayName}</div>
+                          <div className="text-xl font-bold text-yellow-300">+{categoryPoints}</div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+
+                  {/* Custom bonuses */}
+                  {winningTeam.customBonuses?.map((customBonus: any, index: number) => (
+                    <motion.div
+                      key={`custom-${index}`}
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 200,
+                        damping: 15,
+                        delay: 0.7 + (winningTeam.bonusCategories?.length || 0) * 0.1 + index * 0.1
+                      }}
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg px-4 py-2 shadow-xl border border-blue-300"
+                    >
+                      <div className="text-center">
+                        <div className="text-xs text-blue-100 font-semibold">Bonus</div>
+                        <div className="text-lg font-bold text-white">{customBonus.bonusName}</div>
+                        <div className="text-xl font-bold text-yellow-300">+{customBonus.points}</div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
 
             {/* Member Scores */}
             <motion.div
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8, duration: 0.6 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto"
+              className="grid grid-cols-2 gap-3 w-full max-w-xl"
             >
               {winningTeam.members.map((member: any, index: number) => {
                 const memberScore = winningTeam.scores.find((s: any) => s.userId === member.id);
@@ -633,12 +743,12 @@ function DisplayPageContent() {
                       damping: 20,
                       delay: 1 + index * 0.1
                     }}
-                    className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border-2 border-yellow-400/50"
+                    className="bg-white/10 backdrop-blur-lg rounded-lg p-3 border border-yellow-400/50"
                   >
-                    <h3 className="text-2xl font-bold text-white mb-2">
+                    <h3 className="text-lg font-bold text-white mb-1">
                       {member.firstName} {member.lastName}
                     </h3>
-                    <div className="text-3xl font-bold text-yellow-400">
+                    <div className="text-2xl font-bold text-yellow-400">
                       {points} pts
                     </div>
                   </motion.div>
@@ -892,9 +1002,10 @@ function DisplayPageContent() {
                                 </p>
                               </div>
                             {/* Bonus cards inline */}
-                            {(team.bonusPoints || 0) > 0 && team.bonusCategories && team.bonusCategories.length > 0 && (
+                            {(team.bonusPoints || 0) > 0 && (team.bonusCategories?.length || team.customBonuses?.length) && (
                               <div className="flex flex-wrap gap-2">
-                                {team.bonusCategories.map((category, catIndex) => {
+                                {/* Built-in "All In" bonuses */}
+                                {team.bonusCategories?.map((category, catIndex) => {
                                   const categoryPoints = settings?.bonusValues?.[category as keyof typeof settings.bonusValues] || 0;
                                   const displayName = category === 'one21s' ? '1-2-1s' :
                                                       category === 'tyfcb' ? 'TYFCB' :
@@ -926,6 +1037,33 @@ function DisplayPageContent() {
                                     </motion.div>
                                   );
                                 })}
+
+                                {/* Custom bonuses */}
+                                {team.customBonuses?.map((customBonus, cbIndex) => (
+                                  <motion.div
+                                    key={`custom-${cbIndex}`}
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{
+                                      delay: 0.4 + index * 0.05 + (team.bonusCategories?.length || 0) * 0.1 + cbIndex * 0.1,
+                                      type: "spring",
+                                      stiffness: 260,
+                                      damping: 20
+                                    }}
+                                    className="bg-gradient-to-r from-blue-500/90 to-purple-500/90 rounded-lg px-2 py-1 shadow-lg border border-blue-400/50"
+                                  >
+                                    <div className="flex items-center gap-1">
+                                      <Gift size={12} className="text-yellow-300" />
+                                      <div>
+                                        <div className="text-xs text-blue-100 font-medium">Bonus</div>
+                                        <div className="text-white font-bold text-xs">{customBonus.bonusName}</div>
+                                      </div>
+                                      <div className="text-yellow-300 font-bold text-xs ml-1">
+                                        +{customBonus.points}
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                ))}
                               </div>
                             )}
                             </div>

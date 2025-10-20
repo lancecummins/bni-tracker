@@ -30,6 +30,7 @@ export default function SlugScoringPage({ params }: PageProps) {
   const [mobileView, setMobileView] = useState<'table' | 'cards'>('cards');
   const [savingUsers, setSavingUsers] = useState<Record<string, boolean>>({});
   const [savedUsers, setSavedUsers] = useState<Record<string, boolean>>({});
+  const [tempInputs, setTempInputs] = useState<Record<string, Record<string, string>>>({});
 
   // Use useMemo to prevent recreating teamMembers array on every render
   const teamMembers = useMemo(() => {
@@ -477,7 +478,7 @@ export default function SlugScoringPage({ params }: PageProps) {
                         {[1, 2, 3, 4, 5].map(val => (
                           <button
                             key={val}
-                            onClick={() => handleMetricChange(member.id!, 'one21s', val.toString())}
+                            onClick={() => { const newVal = metrics.one21s === val ? '0' : val.toString(); handleMetricChange(member.id!, 'one21s', newVal); }}
                             className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
                               metrics.one21s === val
                                 ? 'bg-blue-600 text-white'
@@ -488,12 +489,35 @@ export default function SlugScoringPage({ params }: PageProps) {
                           </button>
                         ))}
                         <input
-                          type="number"
-                          min="0"
-                          value={metrics.one21s > 5 ? metrics.one21s : ''}
-                          onChange={(e) => handleMetricChange(member.id!, 'one21s', e.target.value)}
-                          placeholder="+"
-                          className="w-10 px-1 py-2 text-center border rounded text-sm"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={tempInputs[member.id!]?.one21s ?? (metrics.one21s > 5 ? metrics.one21s : '')}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setTempInputs(prev => ({
+                              ...prev,
+                              [member.id!]: { ...prev[member.id!], one21s: val }
+                            }));
+                            const num = parseInt(val) || 0;
+                            if (num === 0 || num >= 6) {
+                              handleMetricChange(member.id!, 'one21s', val || '0');
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const numVal = parseInt(e.target.value) || 0;
+                            if (numVal > 0 && numVal < 6) {
+                              handleMetricChange(member.id!, 'one21s', '0');
+                            }
+                            setTempInputs(prev => {
+                              const copy = { ...prev };
+                              if (copy[member.id!]) delete copy[member.id!].one21s;
+                              return copy;
+                            });
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="6+"
+                          className="w-14 px-2 py-2 text-center border rounded text-sm"
                         />
                       </div>
                     </div>
@@ -504,10 +528,13 @@ export default function SlugScoringPage({ params }: PageProps) {
                         Referrals ({settings?.pointValues.referrals || 0}pts)
                       </label>
                       <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map(val => (
+                        {[1, 2, 3, 4, 5].map((val) => (
                           <button
                             key={val}
-                            onClick={() => handleMetricChange(member.id!, 'referrals', val.toString())}
+                            onClick={() => {
+                              const newVal = metrics.referrals === val ? '0' : val.toString();
+                              handleMetricChange(member.id!, 'referrals', newVal);
+                            }}
                             className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
                               metrics.referrals === val
                                 ? 'bg-blue-600 text-white'
@@ -518,12 +545,35 @@ export default function SlugScoringPage({ params }: PageProps) {
                           </button>
                         ))}
                         <input
-                          type="number"
-                          min="0"
-                          value={metrics.referrals > 5 ? metrics.referrals : ''}
-                          onChange={(e) => handleMetricChange(member.id!, 'referrals', e.target.value)}
-                          placeholder="+"
-                          className="w-10 px-1 py-2 text-center border rounded text-sm"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={tempInputs[member.id!]?.referrals ?? (metrics.referrals > 5 ? metrics.referrals : '')}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setTempInputs(prev => ({
+                              ...prev,
+                              [member.id!]: { ...prev[member.id!], referrals: val }
+                            }));
+                            const num = parseInt(val) || 0;
+                            if (num === 0 || num >= 6) {
+                              handleMetricChange(member.id!, 'referrals', val || '0');
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const numVal = parseInt(e.target.value) || 0;
+                            if (numVal > 0 && numVal < 6) {
+                              handleMetricChange(member.id!, 'referrals', '0');
+                            }
+                            setTempInputs(prev => {
+                              const copy = { ...prev };
+                              if (copy[member.id!]) delete copy[member.id!].referrals;
+                              return copy;
+                            });
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="6+"
+                          className="w-14 px-2 py-2 text-center border rounded text-sm"
                         />
                       </div>
                     </div>
@@ -534,10 +584,13 @@ export default function SlugScoringPage({ params }: PageProps) {
                         TYFCB ({settings?.pointValues.tyfcb || 0}pts)
                       </label>
                       <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map(val => (
+                        {[1, 2, 3, 4, 5].map((val) => (
                           <button
                             key={val}
-                            onClick={() => handleMetricChange(member.id!, 'tyfcb', val.toString())}
+                            onClick={() => {
+                              const newVal = metrics.tyfcb === val ? '0' : val.toString();
+                              handleMetricChange(member.id!, 'tyfcb', newVal);
+                            }}
                             className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
                               metrics.tyfcb === val
                                 ? 'bg-blue-600 text-white'
@@ -548,12 +601,35 @@ export default function SlugScoringPage({ params }: PageProps) {
                           </button>
                         ))}
                         <input
-                          type="number"
-                          min="0"
-                          value={metrics.tyfcb > 5 ? metrics.tyfcb : ''}
-                          onChange={(e) => handleMetricChange(member.id!, 'tyfcb', e.target.value)}
-                          placeholder="+"
-                          className="w-10 px-1 py-2 text-center border rounded text-sm"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={tempInputs[member.id!]?.tyfcb ?? (metrics.tyfcb > 5 ? metrics.tyfcb : '')}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setTempInputs(prev => ({
+                              ...prev,
+                              [member.id!]: { ...prev[member.id!], tyfcb: val }
+                            }));
+                            const num = parseInt(val) || 0;
+                            if (num === 0 || num >= 6) {
+                              handleMetricChange(member.id!, 'tyfcb', val || '0');
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const numVal = parseInt(e.target.value) || 0;
+                            if (numVal > 0 && numVal < 6) {
+                              handleMetricChange(member.id!, 'tyfcb', '0');
+                            }
+                            setTempInputs(prev => {
+                              const copy = { ...prev };
+                              if (copy[member.id!]) delete copy[member.id!].tyfcb;
+                              return copy;
+                            });
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="6+"
+                          className="w-14 px-2 py-2 text-center border rounded text-sm"
                         />
                       </div>
                     </div>
@@ -564,10 +640,13 @@ export default function SlugScoringPage({ params }: PageProps) {
                         Visitors ({settings?.pointValues.visitors || 0}pts)
                       </label>
                       <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map(val => (
+                        {[1, 2, 3, 4, 5].map((val) => (
                           <button
                             key={val}
-                            onClick={() => handleMetricChange(member.id!, 'visitors', val.toString())}
+                            onClick={() => {
+                              const newVal = metrics.visitors === val ? '0' : val.toString();
+                              handleMetricChange(member.id!, 'visitors', newVal);
+                            }}
                             className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
                               metrics.visitors === val
                                 ? 'bg-blue-600 text-white'
@@ -578,12 +657,35 @@ export default function SlugScoringPage({ params }: PageProps) {
                           </button>
                         ))}
                         <input
-                          type="number"
-                          min="0"
-                          value={metrics.visitors > 5 ? metrics.visitors : ''}
-                          onChange={(e) => handleMetricChange(member.id!, 'visitors', e.target.value)}
-                          placeholder="+"
-                          className="w-10 px-1 py-2 text-center border rounded text-sm"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={tempInputs[member.id!]?.visitors ?? (metrics.visitors > 5 ? metrics.visitors : '')}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setTempInputs(prev => ({
+                              ...prev,
+                              [member.id!]: { ...prev[member.id!], visitors: val }
+                            }));
+                            const num = parseInt(val) || 0;
+                            if (num === 0 || num >= 6) {
+                              handleMetricChange(member.id!, 'visitors', val || '0');
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const numVal = parseInt(e.target.value) || 0;
+                            if (numVal > 0 && numVal < 6) {
+                              handleMetricChange(member.id!, 'visitors', '0');
+                            }
+                            setTempInputs(prev => {
+                              const copy = { ...prev };
+                              if (copy[member.id!]) delete copy[member.id!].visitors;
+                              return copy;
+                            });
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="6+"
+                          className="w-14 px-2 py-2 text-center border rounded text-sm"
                         />
                       </div>
                     </div>

@@ -21,6 +21,7 @@ interface DisplayData {
   teamId?: string;
   teamName?: string;
   teamColor?: string;
+  teamLogoUrl?: string;
   bonusTotal?: number;
   bonusCategories?: string[];
   // For custom bonus
@@ -138,12 +139,12 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
   // Display User Profile
   if (displayData.type === 'DISPLAY_USER' && displayData.user && displayData.team) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-12">
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-12 relative overflow-hidden">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5 }}
-          className="bg-white/10 backdrop-blur-lg rounded-3xl p-12 max-w-4xl w-full"
+          className="bg-white/10 backdrop-blur-lg rounded-3xl p-12 max-w-4xl w-full relative z-10"
         >
           <div className="flex items-center gap-12">
             <motion.div
@@ -168,7 +169,7 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
               transition={{ delay: 0.3 }}
               className="flex-1"
             >
-              <h1 className="text-5xl font-bold text-white mb-2">
+              <h1 className="text-5xl font-bold text-white mb-4">
                 {displayData.user.firstName} {displayData.user.lastName}
               </h1>
               <div
@@ -231,8 +232,8 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
     );
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-12">
-        <div className="max-w-7xl w-full space-y-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-12 relative overflow-hidden">
+        <div className="max-w-7xl w-full space-y-8 relative z-10">
           {/* User Header with HUGE Avatar */}
           <motion.div
             initial={{ y: -50, opacity: 0 }}
@@ -638,6 +639,95 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Display Team Bonus
+  if (displayData.type === 'DISPLAY_TEAM_BONUS') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-12">
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", duration: 0.8 }}
+          className="text-center"
+        >
+          {/* Team Logo */}
+          {displayData.teamLogoUrl && (
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mb-8 flex justify-center"
+            >
+              <div className="relative w-64 h-64">
+                <Image
+                  src={displayData.teamLogoUrl}
+                  alt={`${displayData.teamName} logo`}
+                  fill
+                  className="object-contain"
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {/* Team Name */}
+          <motion.h1
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-7xl font-bold mb-6"
+            style={{ color: displayData.teamColor }}
+          >
+            {displayData.teamName}
+          </motion.h1>
+
+          {/* Bonus Title */}
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-white text-4xl font-semibold mb-8"
+          >
+            Team Bonus!
+          </motion.div>
+
+          {/* Bonus Points */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.5, type: "spring" }}
+            className="bg-yellow-400 text-black rounded-3xl px-16 py-12 mb-8 inline-block"
+          >
+            <div className="text-9xl font-bold">+{displayData.bonusTotal}</div>
+            <div className="text-3xl font-semibold mt-2">Points</div>
+          </motion.div>
+
+          {/* Bonus Categories */}
+          {displayData.bonusCategories && displayData.bonusCategories.length > 0 && (
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="flex flex-wrap gap-4 justify-center"
+            >
+              {displayData.bonusCategories.map((category, index) => (
+                <motion.div
+                  key={category}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.7 + index * 0.1, type: "spring" }}
+                  className="bg-white/20 backdrop-blur-lg rounded-2xl px-8 py-4 text-white text-2xl font-semibold"
+                >
+                  {category === 'one21s' ? '1-2-1s All In' :
+                   category === 'tyfcb' ? 'TYFCB All In' :
+                   `${category.charAt(0).toUpperCase() + category.slice(1)} All In`}
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </motion.div>
       </div>
     );
   }

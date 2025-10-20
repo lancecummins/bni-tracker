@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import {
   Trophy,
   Crown,
@@ -124,6 +125,20 @@ export default function TeamDisplayPage() {
         <div className="flex-1 flex gap-4 overflow-hidden">
           {/* Left Side - Stats and Info */}
           <div className="w-80 flex flex-col gap-3">
+            {/* Team Logo */}
+            {team.logoUrl && (
+              <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 flex items-center justify-center">
+                <div className="relative w-full aspect-square">
+                  <Image
+                    src={team.logoUrl}
+                    alt={`${team.name} logo`}
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Team Stats */}
             <div className="bg-white/10 backdrop-blur-lg rounded-xl p-3">
               <h3 className="text-sm font-semibold mb-2 text-white/80">Team Stats</h3>

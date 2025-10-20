@@ -432,20 +432,19 @@ export default function RefereePage() {
     }
   };
 
-  const handleDisplayTeamBonus = async (teamId: string) => {
+  const handleDisplayTeamBonus = async (teamId: string, category?: string, bonusPoints?: number) => {
     const team = teams.find(t => t.id === teamId);
     if (!team) return;
 
     const bonuses = getTeamBonuses(teamId);
 
-    // Mark as revealed
-    revealedBonusesStore.revealTeamBonus(teamId);
-
-    // Build complete list of bonus categories (both built-in and custom)
-    const allBonusCategories = [
+    // If a specific category is provided, only show that one
+    const displayCategories = category ? [category] : [
       ...bonuses.categories,
       ...bonuses.customBonuses.map(cb => cb.bonusName)
     ];
+
+    const displayPoints = bonusPoints || bonuses.total;
 
     // Send bonus details to display
     try {
@@ -457,8 +456,9 @@ export default function RefereePage() {
           teamId: teamId,
           teamName: team.name,
           teamColor: team.color,
-          bonusTotal: bonuses.total,
-          bonusCategories: allBonusCategories,
+          teamLogoUrl: team.logoUrl,
+          bonusTotal: displayPoints,
+          bonusCategories: displayCategories,
           revealedBonusTeamIds: Array.from(revealedBonusesStore.getRevealedTeams())
         })
       });
@@ -809,43 +809,59 @@ export default function RefereePage() {
 
                 {/* Team Bonuses */}
                 {bonuses.total > 0 && (
-                  <div className={`px-3 py-2 border-x border-b ${
-                    isRevealed
-                      ? 'bg-green-100 border-green-300'
-                      : 'bg-yellow-50 border-yellow-200'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Gift size={16} className={isRevealed ? 'text-green-600' : 'text-yellow-600'} />
-                        <span className={`text-sm font-semibold ${isRevealed ? 'text-green-700' : 'text-yellow-700'}`}>
-                          +{bonuses.total} bonus points
-                        </span>
-                        {bonuses.categories.length > 0 && (
-                          <span className="text-xs text-gray-600">
-                            ({bonuses.categories.map(c =>
-                              c === 'one21s' ? '1-2-1s' :
-                              c === 'tyfcb' ? 'TYFCB' :
-                              c.charAt(0).toUpperCase() + c.slice(1)
-                            ).join(', ')})
-                          </span>
-                        )}
-                        {bonuses.customBonuses && bonuses.customBonuses.length > 0 && (
-                          <span className="text-xs text-gray-600">
-                            + {bonuses.customBonuses.map(cb => cb.bonusName).join(', ')}
-                          </span>
-                        )}
+                  <div className="border-x border-b">
+                    {/* Built-in "All In" bonuses */}
+                    {bonuses.categories.map((category) => {
+                      const categoryName = category === 'one21s' ? '1-2-1s' :
+                                          category === 'tyfcb' ? 'TYFCB' :
+                                          category.charAt(0).toUpperCase() + category.slice(1);
+                      const points = settings?.bonusValues?.[category as keyof typeof settings.bonusValues] || 0;
+
+                      return (
+                        <div key={category} className="px-3 py-2 bg-yellow-50 border-b border-yellow-200 last:border-b-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Gift size={14} className="text-yellow-600" />
+                              <span className="text-sm font-semibold text-yellow-700">
+                                {categoryName} All In
+                              </span>
+                              <span className="text-xs text-gray-600">
+                                +{points} points
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleDisplayTeamBonus(team.id!, categoryName + ' All In', points)}
+                              className="px-3 py-1 bg-yellow-600 text-white text-xs font-medium rounded hover:bg-yellow-700 transition-colors"
+                            >
+                              Display
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Custom team bonuses */}
+                    {bonuses.customBonuses.map((customBonus, idx) => (
+                      <div key={`custom-${idx}`} className="px-3 py-2 bg-blue-50 border-b border-blue-200 last:border-b-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Gift size={14} className="text-blue-600" />
+                            <span className="text-sm font-semibold text-blue-700">
+                              {customBonus.bonusName}
+                            </span>
+                            <span className="text-xs text-gray-600">
+                              +{customBonus.points} points
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleDisplayTeamBonus(team.id!, customBonus.bonusName, customBonus.points)}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Display
+                          </button>
+                        </div>
                       </div>
-                      {isRevealed ? (
-                        <CheckCircle size={16} className="text-green-600" />
-                      ) : (
-                        <button
-                          onClick={() => handleDisplayTeamBonus(team.id!)}
-                          className="px-3 py-1 bg-yellow-600 text-white text-xs font-medium rounded hover:bg-yellow-700 transition-colors"
-                        >
-                          Display Bonus
-                        </button>
-                      )}
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>

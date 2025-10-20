@@ -163,6 +163,7 @@ export interface TeamStandings {
   members: LeaderboardEntry[];
   bonusPoints?: number;
   bonusCategories?: string[];
+  customBonuses?: { bonusName: string; points: number; teamId: string }[];
   position: number;
 }
 
