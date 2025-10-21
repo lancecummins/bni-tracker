@@ -3,13 +3,16 @@
 import { useState, useEffect } from 'react';
 import { sessionService, scoreService } from '@/lib/firebase/services';
 import { Session, Score } from '@/lib/types';
-import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff, Monitor, Edit2 } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff, Monitor, Edit2, PlayCircle, X } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { useActiveSession } from '@/lib/firebase/hooks';
 
 type SortBy = 'date' | 'week' | 'status' | 'points';
 type SortOrder = 'asc' | 'desc';
 
 export default function SessionsPage() {
+  const { session: activeSession } = useActiveSession();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionScores, setSessionScores] = useState<Record<string, Score[]>>({});
   const [loading, setLoading] = useState(true);
@@ -19,10 +22,39 @@ export default function SessionsPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [editingSession, setEditingSession] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [sessionDate, setSessionDate] = useState('');
+  const [sessionName, setSessionName] = useState('');
+  const [creatingSession, setCreatingSession] = useState(false);
 
   useEffect(() => {
     loadSessions();
   }, []);
+
+  // Set default date and name when modal opens
+  useEffect(() => {
+    if (showSessionModal) {
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0];
+      setSessionDate(formattedDate);
+
+      // Set default name
+      const weekNumber = sessions.length + 1;
+      const defaultName = formatSessionName(weekNumber, today);
+      setSessionName(defaultName);
+    }
+  }, [showSessionModal, sessions.length]);
+
+  const formatSessionName = (weekNumber: number, date: Date) => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `Week ${weekNumber} - ${month} ${day}, ${year}`;
+  };
 
   const loadSessions = async () => {
     try {
@@ -103,6 +135,64 @@ export default function SessionsPage() {
     }
   };
 
+  const handleCreateSession = async () => {
+    if (!sessionDate) {
+      toast.error('Please select a date');
+      return;
+    }
+
+    if (!sessionName.trim()) {
+      toast.error('Please enter a session name');
+      return;
+    }
+
+    try {
+      setCreatingSession(true);
+
+      const selectedDate = new Date(sessionDate + 'T12:00:00'); // Set to noon to avoid timezone issues
+
+      // Calculate week number based on existing sessions
+      const weekNumber = sessions.length + 1;
+
+      const newSession: Omit<Session, 'id'> = {
+        name: sessionName.trim(),
+        seasonId: 'season-id', // This should come from active season
+        weekNumber: weekNumber,
+        date: Timestamp.fromDate(selectedDate),
+        status: 'open',
+        createdBy: 'admin-user-id', // Should come from auth
+        createdAt: Timestamp.now(),
+      };
+
+      await sessionService.create(newSession);
+
+      toast.success(`Session opened: ${sessionName}`);
+
+      setShowSessionModal(false);
+      setSessionDate('');
+      setSessionName('');
+      loadSessions();
+    } catch (error) {
+      console.error('Error creating session:', error);
+      toast.error('Failed to open session');
+    } finally {
+      setCreatingSession(false);
+    }
+  };
+
+  const handleCloseActiveSession = async () => {
+    if (!activeSession?.id) return;
+
+    try {
+      await sessionService.close(activeSession.id);
+      toast.success('Session closed successfully!');
+      loadSessions();
+    } catch (error) {
+      console.error('Error closing session:', error);
+      toast.error('Failed to close session');
+    }
+  };
+
   const getSessionStats = (sessionId: string) => {
     const scores = sessionScores[sessionId] || [];
     const totalPoints = scores.reduce((sum, score) => sum + score.totalPoints, 0);
@@ -177,9 +267,31 @@ export default function SessionsPage() {
             <h1 className="text-2xl font-bold text-gray-900">Session History</h1>
             <p className="text-gray-600 mt-1">View and manage past scoring sessions</p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Calendar size={20} />
-            {filteredAndSortedSessions.length} of {sessions.length} Sessions
+
+          {/* Session Control Buttons */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Calendar size={20} />
+              {filteredAndSortedSessions.length} of {sessions.length} Sessions
+            </div>
+
+            {activeSession ? (
+              <button
+                onClick={handleCloseActiveSession}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Clock size={20} />
+                Close Session
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowSessionModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <PlayCircle size={20} />
+                Open Session
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -506,6 +618,88 @@ export default function SessionsPage() {
           })
         )}
       </div>
+
+      {/* Session Creation Modal */}
+      {showSessionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Create New Session</h2>
+              <button
+                onClick={() => {
+                  setShowSessionModal(false);
+                  setSessionDate('');
+                  setSessionName('');
+                }}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Session Date
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={sessionDate}
+                    onChange={(e) => {
+                      setSessionDate(e.target.value);
+                      // Update default name when date changes
+                      if (e.target.value) {
+                        const weekNumber = sessions.length + 1;
+                        const newName = formatSessionName(weekNumber, new Date(e.target.value + 'T12:00:00'));
+                        setSessionName(newName);
+                      }
+                    }}
+                    className="w-full px-4 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Session Name
+                </label>
+                <input
+                  type="text"
+                  value={sessionName}
+                  onChange={(e) => setSessionName(e.target.value)}
+                  placeholder="Enter session name"
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Customize the name that will be displayed for this session
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleCreateSession}
+                  disabled={!sessionDate || creatingSession}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {creatingSession ? 'Creating...' : 'Create Session'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSessionModal(false);
+                    setSessionDate('');
+                    setSessionName('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
