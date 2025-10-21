@@ -167,7 +167,7 @@ export default function SeasonDashboardPage() {
                       strokeWidth={2}
                       dot={(props: any) => {
                         const { cx, cy, payload, index: dotIndex } = props;
-                        if (cx === undefined || cy === undefined) return null;
+                        if (cx === undefined || cy === undefined) return <g />;
 
                         return (
                           <g key={`dot-${userTotal.userId}-${dotIndex}`}>
