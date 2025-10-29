@@ -30,12 +30,15 @@ export function useLeaderboard(sessionId: string | null, usePublished: boolean =
       .filter((user) => (user.role === 'member' || user.role === 'team-leader') && user.isActive)
       .map((user) => {
         const score = scoreMap.get(user.id!) || null;
-        const team = teams.find((t) => t.id === user.teamId) || null;
+        // Use teamId from the score if available (historical team assignment at time of scoring)
+        // Otherwise fall back to user's current team
+        const teamId = score?.teamId || user.teamId;
+        const team = teams.find((t) => t.id === teamId) || null;
 
         return {
           userId: user.id!,
           user,
-          teamId: user.teamId || undefined,
+          teamId: teamId || undefined,
           team: team || undefined,
           weeklyPoints: score?.totalPoints || 0,
           totalPoints: 0, // This would need cumulative calculation

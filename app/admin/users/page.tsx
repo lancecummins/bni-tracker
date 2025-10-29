@@ -79,6 +79,24 @@ export default function UsersPage() {
     const edits = userEdits[userId];
     if (!edits) return;
 
+    // Check if team is being changed while a session is active
+    if (activeSession && 'teamId' in edits) {
+      const user = users.find(u => u.id === userId);
+      if (user && user.teamId !== edits.teamId) {
+        const confirmed = window.confirm(
+          `WARNING: There is currently an active session (${activeSession.name || `Week ${activeSession.weekNumber}`}).\n\n` +
+          `Changing this user's team assignment will NOT affect their scores or team assignment for the current active session. ` +
+          `Their scores will remain with their original team (${teams.find(t => t.id === user.teamId)?.name || 'their current team'}).\n\n` +
+          `This change will only apply to future sessions.\n\n` +
+          `Do you want to continue?`
+        );
+
+        if (!confirmed) {
+          return; // User cancelled the change
+        }
+      }
+    }
+
     try {
       await userService.update(userId, edits);
       clearStaticDataCache(); // Clear cache after update

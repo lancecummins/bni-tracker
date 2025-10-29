@@ -76,7 +76,10 @@ export function useStaticLeaderboard(sessionId: string | null, usePublished: boo
       .filter((user) => (user.role === 'member' || user.role === 'team-leader' || user.role === 'admin') && user.isActive && user.id && revealedUserIds.has(user.id))
       .map((user) => {
         const score = scoreMap.get(user.id!) || null;
-        const team = teams.find((t) => t.id === user.teamId) || null;
+        // Use teamId from the score if available (historical team assignment at time of scoring)
+        // Otherwise fall back to user's current team
+        const teamId = score?.teamId || user.teamId;
+        const team = teams.find((t) => t.id === teamId) || null;
 
         // Use totalPoints from score (includes metrics + custom bonuses)
         const weeklyPoints = score?.totalPoints || 0;
@@ -84,7 +87,7 @@ export function useStaticLeaderboard(sessionId: string | null, usePublished: boo
         return {
           userId: user.id!,
           user,
-          teamId: user.teamId || undefined,
+          teamId: teamId || undefined,
           team: team || undefined,
           weeklyPoints: weeklyPoints,
           totalPoints: 0, // This would need cumulative calculation
@@ -151,29 +154,33 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
       : scores;
 
     const teamStandings: TeamStandings[] = teams.map((team) => {
-      // Only include revealed team members and team leaders
+      // Get scores for this team (using historical teamId from scores, not current user.teamId)
+      const teamScores = filteredScores.filter((score) => score.teamId === team.id);
+
+      // Only include revealed team members
       const teamMembers = users.filter(
-        (u) => u.teamId === team.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive && u.id && revealedUserIds.has(u.id)
+        (u) => (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') &&
+               u.isActive &&
+               u.id &&
+               revealedUserIds.has(u.id) &&
+               teamScores.some((score) => score.userId === u.id)
       );
 
       console.log(`[useStaticTeamStandings] Team ${team.name}: ${teamMembers.length} revealed members`);
 
-      const teamScores = filteredScores.filter((score) =>
-        teamMembers.some((member) => member.id === score.userId)
-      );
-
       // Calculate total points
-      let weeklyPoints = teamScores.reduce(
-        (total, score) => total + (score.totalPoints || 0),
-        0
-      );
+      let weeklyPoints = teamScores
+        .filter(score => revealedUserIds.has(score.userId))
+        .reduce((total, score) => total + (score.totalPoints || 0), 0);
 
       console.log(`[useStaticTeamStandings] Team ${team.name}: weeklyPoints = ${weeklyPoints}`);
 
-      // Calculate bonuses only if ALL team members have been revealed
-      // This maintains suspense during progressive reveals
+      // Calculate bonuses based on ALL team members who scored in this session
+      // (using historical team assignment from scores)
       const allTeamMembers = users.filter(
-        (u) => u.teamId === team.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive
+        (u) => (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') &&
+               u.isActive &&
+               teamScores.some((score) => score.userId === u.id)
       );
 
       let bonusPoints = 0;
@@ -212,10 +219,12 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
         team,
         members: teamMembers.map((member) => {
           const score = teamScores.find((s) => s.userId === member.id);
+          // Use teamId from score (historical assignment) if available
+          const memberTeamId = score?.teamId || member.teamId;
           return {
             userId: member.id!,
             user: member,
-            teamId: member.teamId,
+            teamId: memberTeamId,
             team: team,
             weeklyPoints: score?.totalPoints || 0,
             totalPoints: score?.totalPoints || 0, // Would need cumulative calculation
