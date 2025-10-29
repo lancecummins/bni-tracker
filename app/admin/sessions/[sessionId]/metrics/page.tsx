@@ -244,15 +244,15 @@ export default function SessionMetricsPage() {
         </div>
 
         {/* Metrics Grid */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-100 border-b-2 border-gray-200 sticky top-0 z-10">
+              <thead className="bg-gray-100 border-b-2 border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">#</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 sticky top-0 bg-gray-100 z-10">#</th>
                   <th
-                    className={`px-6 py-4 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
-                      sortColumn === 'name' ? 'bg-blue-100' : ''
+                    className={`px-6 py-4 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                      sortColumn === 'name' ? 'bg-blue-100' : 'bg-gray-100'
                     }`}
                     onClick={() => handleSort('name')}
                   >
@@ -266,8 +266,8 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
-                      sortColumn === 'attendance' ? 'bg-blue-100' : ''
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                      sortColumn === 'attendance' ? 'bg-blue-100' : 'bg-gray-100'
                     }`}
                     onClick={() => handleSort('attendance')}
                   >
@@ -281,8 +281,8 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
-                      sortColumn === 'one21s' ? 'bg-blue-100' : ''
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                      sortColumn === 'one21s' ? 'bg-blue-100' : 'bg-gray-100'
                     }`}
                     onClick={() => handleSort('one21s')}
                   >
@@ -296,8 +296,8 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
-                      sortColumn === 'referrals' ? 'bg-blue-100' : ''
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                      sortColumn === 'referrals' ? 'bg-blue-100' : 'bg-gray-100'
                     }`}
                     onClick={() => handleSort('referrals')}
                   >
@@ -311,8 +311,8 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
-                      sortColumn === 'tyfcb' ? 'bg-blue-100' : ''
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                      sortColumn === 'tyfcb' ? 'bg-blue-100' : 'bg-gray-100'
                     }`}
                     onClick={() => handleSort('tyfcb')}
                   >
@@ -326,8 +326,8 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
-                      sortColumn === 'visitors' ? 'bg-blue-100' : ''
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                      sortColumn === 'visitors' ? 'bg-blue-100' : 'bg-gray-100'
                     }`}
                     onClick={() => handleSort('visitors')}
                   >
@@ -341,8 +341,8 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
-                      sortColumn === 'total' ? 'bg-blue-100' : ''
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                      sortColumn === 'total' ? 'bg-blue-100' : 'bg-gray-100'
                     }`}
                     onClick={() => handleSort('total')}
                   >
