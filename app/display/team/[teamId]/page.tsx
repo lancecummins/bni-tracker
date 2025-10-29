@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import {
   useStaticActiveSession,
-  useStaticTeams
+  useStaticTeams,
+  useStaticSession
 } from '@/lib/firebase/hooks/useStaticData';
 import { useStaticLeaderboard, useStaticTeamStandings } from '@/lib/firebase/hooks/useStaticCompositeData';
 import { Team } from '@/lib/types';
@@ -31,6 +32,7 @@ export default function TeamDisplayPage() {
   const { teams } = useStaticTeams();
 
   const sessionId = sessionIdParam || activeSession?.id || null;
+  const { session: currentSession } = useStaticSession(sessionId);
 
   const { leaderboard } = useStaticLeaderboard(sessionId, false);
   const { standings } = useStaticTeamStandings(sessionId, false);
@@ -115,7 +117,7 @@ export default function TeamDisplayPage() {
               {team.name}
             </h1>
             <span className="text-sm text-white/60">
-              {teamMembers.length} Members • Week {activeSession?.weekNumber || 0}
+              {teamMembers.length} Members • {currentSession?.name || `Week ${currentSession?.weekNumber || 0}`}
             </span>
           </div>
 
@@ -222,7 +224,7 @@ export default function TeamDisplayPage() {
                   <img
                     src={mvp.user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${mvp.user.firstName}${mvp.user.lastName}`}
                     alt=""
-                    className="w-12 h-12 rounded-full border-2 border-yellow-400"
+                    className="w-12 h-12 rounded-full border-2 border-yellow-400 object-cover"
                   />
                   <div className="flex-1">
                     <div className="font-semibold text-white">
@@ -257,16 +259,16 @@ export default function TeamDisplayPage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.05 * index }}
                   className={`
-                    flex items-center justify-between p-2 rounded-lg
+                    flex items-center justify-between p-6 rounded-xl
                     ${isMVP
-                      ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/50'
-                      : 'bg-white/5 hover:bg-white/10 transition-colors'
+                      ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-4 border-yellow-400/50'
+                      : 'bg-white/5 hover:bg-white/10 transition-colors border-2 border-white/10'
                     }
                   `}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-6">
                     <div className={`
-                      text-lg font-bold w-8 text-center
+                      text-3xl font-bold w-12 text-center
                       ${isMVP ? 'text-yellow-400' : 'text-white/50'}
                     `}>
                       {index + 1}
@@ -275,19 +277,19 @@ export default function TeamDisplayPage() {
                       <img
                         src={member.user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${member.user.firstName}${member.user.lastName}`}
                         alt=""
-                        className={`w-10 h-10 rounded-full border ${
+                        className={`w-20 h-20 rounded-full border-4 object-cover ${
                           isMVP ? 'border-yellow-400' : 'border-white/30'
                         }`}
                       />
                       {isMVP && (
-                        <Crown className="absolute -top-1 -right-1 text-yellow-400" size={14} />
+                        <Crown className="absolute -top-2 -right-2 text-yellow-400" size={28} />
                       )}
                     </div>
                     <div className="min-w-0 flex-shrink">
-                      <div className="text-sm font-semibold flex items-center gap-2">
+                      <div className="text-2xl font-semibold flex items-center gap-3">
                         {member.user.firstName} {member.user.lastName}
                         {isMVP && (
-                          <span className="text-xs px-1.5 py-0.5 bg-yellow-400 text-black rounded-full font-bold">
+                          <span className="text-sm px-3 py-1 bg-yellow-400 text-black rounded-full font-bold">
                             MVP
                           </span>
                         )}
@@ -295,39 +297,39 @@ export default function TeamDisplayPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-8">
                     {/* Metrics - Compact Grid */}
-                    <div className="grid grid-cols-6 gap-2 text-xs">
+                    <div className="grid grid-cols-5 gap-4 text-base">
                       <div className="text-center">
-                        <div className="text-white/40 text-xs">ATT</div>
-                        <div className="font-semibold text-sm">{member.metrics.attendance}</div>
+                        <div className="text-white/40 text-2xl font-semibold">ATT</div>
+                        <div className="font-semibold text-2xl">{member.metrics.attendance}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-white/40 text-xs">121</div>
-                        <div className="font-semibold text-sm">{member.metrics.one21s}</div>
+                        <div className="text-white/40 text-2xl font-semibold">121</div>
+                        <div className="font-semibold text-2xl">{member.metrics.one21s}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-white/40 text-xs">REF</div>
-                        <div className="font-semibold text-sm">{member.metrics.referrals}</div>
+                        <div className="text-white/40 text-2xl font-semibold">REF</div>
+                        <div className="font-semibold text-2xl">{member.metrics.referrals}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-white/40 text-xs">TYF</div>
-                        <div className="font-semibold text-sm">{member.metrics.tyfcb}</div>
+                        <div className="text-white/40 text-2xl font-semibold">TYF</div>
+                        <div className="font-semibold text-2xl">{member.metrics.tyfcb}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-white/40 text-xs">VIS</div>
-                        <div className="font-semibold text-sm">{member.metrics.visitors}</div>
+                        <div className="text-white/40 text-2xl font-semibold">VIS</div>
+                        <div className="font-semibold text-2xl">{member.metrics.visitors}</div>
                       </div>
                     </div>
 
                     {/* Total Points */}
                     <div className="text-right">
-                      <div className={`text-2xl font-bold ${
+                      <div className={`text-5xl font-bold ${
                         isMVP ? 'text-yellow-400' : 'text-white'
                       }`}>
                         {member.weeklyPoints}
                       </div>
-                      <div className="text-xs text-white/50">points</div>
+                      <div className="text-base text-white/50">points</div>
                     </div>
                   </div>
                 </motion.div>

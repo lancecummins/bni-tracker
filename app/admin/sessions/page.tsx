@@ -590,6 +590,17 @@ export default function SessionsPage() {
                             </button>
 
                             <button
+                              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(`/admin/sessions/${session.id}/metrics`, '_blank');
+                              }}
+                            >
+                              <BarChart2 size={18} />
+                              View Metrics Grid
+                            </button>
+
+                            <button
                               className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                               onClick={(e) => {
                                 e.stopPropagation();
