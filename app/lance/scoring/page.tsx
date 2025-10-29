@@ -329,7 +329,7 @@ export default function LanceScoringPage() {
     );
   }
 
-  if (!activeSession) {
+  if (allSessions.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

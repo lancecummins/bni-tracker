@@ -63,6 +63,8 @@ export default function RefereePage() {
   const [showAwardBonusModal, setShowAwardBonusModal] = useState(false);
   const [awardBonusTarget, setAwardBonusTarget] = useState<{ type: 'individual' | 'team', user: User, team?: Team } | null>(null);
   const [selectedBonus, setSelectedBonus] = useState<CustomBonus | null>(null);
+  const [bonusModalTab, setBonusModalTab] = useState<'individual' | 'team' | 'commissioner'>('individual');
+  const [lanceAllocations, setLanceAllocations] = useState<any[]>([]);
   const [filterMode, setFilterMode] = useState<'all' | 'shown' | 'not-shown' | 'no-score'>('all');
   const [sortMode, setSortMode] = useState<'team' | 'name' | 'points' | 'random'>('random');
   const [randomOrder, setRandomOrder] = useState<string[]>([]);
@@ -88,6 +90,21 @@ export default function RefereePage() {
       } else {
         setShownUserIds(new Set());
         shownUsersStore.clearShown();
+      }
+
+      // Load Lance's allocations for this session
+      const lanceAllocationsKey = `lance-allocations-${selectedSessionId}`;
+      const lanceAllocSaved = localStorage.getItem(lanceAllocationsKey);
+      if (lanceAllocSaved) {
+        try {
+          const data = JSON.parse(lanceAllocSaved);
+          setLanceAllocations(data.allocations || []);
+        } catch (e) {
+          console.error('Failed to load Lance allocations:', e);
+          setLanceAllocations([]);
+        }
+      } else {
+        setLanceAllocations([]);
       }
     }
   }, [selectedSessionId]);
@@ -1324,87 +1341,239 @@ export default function RefereePage() {
               </button>
             </div>
 
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">
-                Award to: <span className="font-semibold">
-                  {awardBonusTarget?.type === 'individual'
-                    ? `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`
-                    : `All members of ${awardBonusTarget?.team?.name}`
-                  }
-                </span>
-              </p>
-              <div className="flex items-center gap-2 mb-4">
-                <button
-                  onClick={() => setAwardBonusTarget(prev => prev ? { ...prev, type: 'individual' } : null)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    awardBonusTarget?.type === 'individual'
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  Individual
-                </button>
-                <button
-                  onClick={() => setAwardBonusTarget(prev => prev ? { ...prev, type: 'team' } : null)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    awardBonusTarget?.type === 'team'
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  Entire Team
-                </button>
-              </div>
+            {/* Tab Buttons */}
+            <div className="flex items-center gap-2 mb-4">
+              <button
+                onClick={() => {
+                  setBonusModalTab('individual');
+                  setAwardBonusTarget(prev => prev ? { ...prev, type: 'individual' } : null);
+                }}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  bonusModalTab === 'individual'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Individual
+              </button>
+              <button
+                onClick={() => {
+                  setBonusModalTab('team');
+                  setAwardBonusTarget(prev => prev ? { ...prev, type: 'team' } : null);
+                }}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  bonusModalTab === 'team'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Entire Team
+              </button>
+              <button
+                onClick={() => setBonusModalTab('commissioner')}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  bonusModalTab === 'commissioner'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Commissioner's Points
+              </button>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Bonus
-              </label>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {settings?.customBonuses?.filter(b => !b.isArchived).map(bonus => (
-                  <button
-                    key={bonus.id}
-                    onClick={() => setSelectedBonus(bonus)}
-                    className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
-                      selectedBonus?.id === bonus.id
-                        ? 'border-purple-600 bg-purple-50'
-                        : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{bonus.name}</span>
-                      <span className="text-purple-600 font-bold">+{bonus.points} pts</span>
-                    </div>
-                  </button>
-                ))}
-                {(!settings?.customBonuses || settings.customBonuses.filter(b => !b.isArchived).length === 0) && (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    No custom bonuses available. Create one in Settings first.
-                  </p>
-                )}
+            {bonusModalTab !== 'commissioner' && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  Award to: <span className="font-semibold">
+                    {awardBonusTarget?.type === 'individual'
+                      ? `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`
+                      : `All members of ${awardBonusTarget?.team?.name}`
+                    }
+                  </span>
+                </p>
               </div>
-            </div>
+            )}
 
-            <div className="flex gap-2">
+            {bonusModalTab === 'commissioner' ? (
+              /* Commissioner's Points Tab */
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Commissioner's Allocated Points
+                </label>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {lanceAllocations.length > 0 ? (
+                    lanceAllocations.map((allocation, index) => (
+                      <div
+                        key={index}
+                        className="px-4 py-3 rounded-lg border-2 border-gray-200 bg-gray-50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">{allocation.userName}</span>
+                          <span className="text-purple-600 font-bold">+{allocation.points} pts</span>
+                        </div>
+                        {allocation.customText && (
+                          <p className="text-sm text-gray-600 italic mb-2">"{allocation.customText}"</p>
+                        )}
+                        <button
+                          onClick={async () => {
+                            // Reveal this allocation
+                            const user = users.find(u => u.id === allocation.userId);
+                            if (!user) {
+                              toast.error('User not found');
+                              return;
+                            }
+
+                            const userScore = scores.find(s => s.userId === allocation.userId);
+                            if (!userScore) {
+                              toast.error(`No score found for ${allocation.userName}`);
+                              return;
+                            }
+
+                            if (!settings) {
+                              toast.error('Settings not loaded');
+                              return;
+                            }
+
+                            try {
+                              const bonusName = allocation.customText.trim() || "Commissioner's Bonus";
+
+                              const awardedBonus: AwardedCustomBonus = {
+                                bonusId: 'commissioner-bonus',
+                                bonusName: bonusName,
+                                points: allocation.points,
+                                awardedBy: 'lance@nectafy.com',
+                                awardedAt: Timestamp.now(),
+                              };
+
+                              const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
+                              const customBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
+                              const metricsTotal = (
+                                ((userScore.metrics.attendance || 0) * (settings.pointValues.attendance || 0)) +
+                                ((userScore.metrics.one21s || 0) * (settings.pointValues.one21s || 0)) +
+                                ((userScore.metrics.referrals || 0) * (settings.pointValues.referrals || 0)) +
+                                ((userScore.metrics.tyfcb || 0) * (settings.pointValues.tyfcb || 0)) +
+                                ((userScore.metrics.visitors || 0) * (settings.pointValues.visitors || 0))
+                              );
+
+                              await updateDoc(doc(db, 'scores', userScore.id!), {
+                                customBonuses: updatedCustomBonuses,
+                                totalPoints: metricsTotal + customBonusTotal,
+                                updatedAt: Timestamp.now(),
+                              });
+
+                              await fetch('/api/display', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  type: 'DISPLAY_CUSTOM_BONUS',
+                                  bonusName: bonusName,
+                                  bonusPoints: allocation.points,
+                                  targetName: allocation.userName,
+                                  isTeamBonus: false,
+                                })
+                              });
+
+                              clearStaticDataCache();
+
+                              // Remove this allocation from the list
+                              const updatedAllocations = lanceAllocations.filter((_, i) => i !== index);
+                              setLanceAllocations(updatedAllocations);
+
+                              // Update localStorage
+                              if (selectedSessionId) {
+                                const saved = localStorage.getItem(`lance-allocations-${selectedSessionId}`);
+                                if (saved) {
+                                  const data = JSON.parse(saved);
+                                  data.allocations = updatedAllocations;
+                                  localStorage.setItem(`lance-allocations-${selectedSessionId}`, JSON.stringify(data));
+                                }
+                              }
+
+                              toast.success(`Awarded ${allocation.points} pts to ${allocation.userName}`);
+                            } catch (error) {
+                              console.error('Error awarding Commissioner bonus:', error);
+                              toast.error('Failed to award bonus');
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+                        >
+                          Reveal & Award
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No Commissioner's points saved for this session.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* Regular Bonus Selection */
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Bonus
+                </label>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {settings?.customBonuses?.filter(b => !b.isArchived).map(bonus => (
+                    <button
+                      key={bonus.id}
+                      onClick={() => setSelectedBonus(bonus)}
+                      className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
+                        selectedBonus?.id === bonus.id
+                          ? 'border-purple-600 bg-purple-50'
+                          : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{bonus.name}</span>
+                        <span className="text-purple-600 font-bold">+{bonus.points} pts</span>
+                      </div>
+                    </button>
+                  ))}
+                  {(!settings?.customBonuses || settings.customBonuses.filter(b => !b.isArchived).length === 0) && (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No custom bonuses available. Create one in Settings first.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {bonusModalTab !== 'commissioner' && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowAwardBonusModal(false);
+                    setAwardBonusTarget(null);
+                    setSelectedBonus(null);
+                    setBonusModalTab('individual');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAwardBonus}
+                  disabled={!selectedBonus}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Award Bonus
+                </button>
+              </div>
+            )}
+
+            {bonusModalTab === 'commissioner' && (
               <button
                 onClick={() => {
                   setShowAwardBonusModal(false);
-                  setAwardBonusTarget(null);
-                  setSelectedBonus(null);
+                  setBonusModalTab('individual');
                 }}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
               >
-                Cancel
+                Close
               </button>
-              <button
-                onClick={handleAwardBonus}
-                disabled={!selectedBonus}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                Award Bonus
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}
