@@ -1,91 +1,228 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { userService, sessionService } from '@/lib/firebase/services';
-import { User, Session, AwardedCustomBonus } from '@/lib/types';
-import { Calculator, Users, Gift, Save, Eye, EyeOff, Trophy, ArrowLeft } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { useActiveSession } from '@/lib/firebase/hooks';
-import { useSessionScores } from '@/lib/firebase/hooks/useScores';
-import { useSettings } from '@/lib/firebase/hooks/useSettings';
-import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { scoreService, userService } from '@/lib/firebase/services';
+import { ScoreMetrics, Score, User, Session, Settings, AwardedCustomBonus } from '@/lib/types';
+import { Save, AlertCircle, CheckCircle, Trophy, Zap, User as UserIcon, Gift, X, Eye, Calendar } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
+import { Avatar } from '@/components/Avatar';
+import Image from 'next/image';
+import { useSessionScores } from '@/lib/firebase/hooks/useScores';
 import { clearStaticDataCache } from '@/lib/firebase/hooks/useStaticData';
-
-interface LanceScore {
-  attendance: number;
-  one21s: number;
-  referrals: number;
-  tyfcb: number;
-  visitors: number;
-  totalPoints: number;
-}
+import toast from 'react-hot-toast';
+import { useAllSessions } from '@/lib/firebase/hooks';
 
 interface UserAllocation {
   userId: string;
   user: User;
   points: number;
+  customText: string;
 }
 
 export default function LanceScoringPage() {
-  const router = useRouter();
-  const { session: activeSession } = useActiveSession();
-  const { scores } = useSessionScores(activeSession?.id || null);
-  const { settings } = useSettings();
+  const [lanceUser, setLanceUser] = useState<User | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [score, setScore] = useState<Score | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
 
-  const [lanceScore, setLanceScore] = useState<LanceScore>({
+  const { sessions: allSessions } = useAllSessions();
+
+  const [editedScore, setEditedScore] = useState<ScoreMetrics>({
     attendance: 0,
     one21s: 0,
     referrals: 0,
     tyfcb: 0,
     visitors: 0,
-    totalPoints: 0,
   });
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [allocations, setAllocations] = useState<UserAllocation[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [isSaved, setIsSaved] = useState(true);
+  const [tempInputs, setTempInputs] = useState<Record<string, string>>({});
 
+  // Allocation state
+  const [allocations, setAllocations] = useState<UserAllocation[]>([]);
+  const [savingAllocations, setSavingAllocations] = useState(false);
+
+  const { scores: sessionScores } = useSessionScores(selectedSession?.id || null);
+
+  // Set selected session when sessions load
   useEffect(() => {
-    loadUsers();
+    if (allSessions.length > 0 && !selectedSessionId) {
+      // Default to the active session
+      const activeSession = allSessions.find(s => s.status === 'open');
+      if (activeSession) {
+        setSelectedSessionId(activeSession.id!);
+      }
+    }
+  }, [allSessions, selectedSessionId]);
+
+  // Update selected session when ID changes
+  useEffect(() => {
+    if (selectedSessionId) {
+      const session = allSessions.find(s => s.id === selectedSessionId) || null;
+      setSelectedSession(session);
+    } else {
+      setSelectedSession(null);
+    }
+  }, [selectedSessionId, allSessions]);
+
+  // Load saved allocations when session is loaded
+  useEffect(() => {
+    if (selectedSession?.id) {
+      const saved = localStorage.getItem(`lance-allocations-${selectedSession.id}`);
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          // Reconstruct allocations with user objects
+          const reconstructed = data.allocations.map((a: any) => {
+            const user = allUsers.find(u => u.id === a.userId);
+            return user ? { userId: a.userId, user, points: a.points, customText: a.customText } : null;
+          }).filter(Boolean);
+          setAllocations(reconstructed);
+        } catch (error) {
+          console.error('Error loading saved allocations:', error);
+        }
+      } else {
+        setAllocations([]);
+      }
+    }
+  }, [selectedSession?.id, allUsers]);
+
+  // Load all data directly from Firebase
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+
+        // Load Lance's user account
+        const usersQuery = query(
+          collection(db, 'users'),
+          where('email', '==', 'lance@nectafy.com')
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+
+        if (usersSnapshot.empty) {
+          console.error('Lance user not found');
+          setLoading(false);
+          return;
+        }
+
+        const userData = { id: usersSnapshot.docs[0].id, ...usersSnapshot.docs[0].data() } as User;
+        setLanceUser(userData);
+
+        // Load settings
+        const settingsSnapshot = await getDocs(collection(db, 'settings'));
+        if (!settingsSnapshot.empty) {
+          const settingsData = { id: settingsSnapshot.docs[0].id, ...settingsSnapshot.docs[0].data() } as Settings;
+          setSettings(settingsData);
+        }
+
+        // Load all users for allocation
+        const allUsersSnapshot = await getDocs(collection(db, 'users'));
+        const allUsersData = allUsersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+        const otherUsers = allUsersData.filter(u => u.email !== 'lance@nectafy.com');
+        console.log('Loaded users for allocation:', otherUsers.length);
+        setAllUsers(otherUsers);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
+  // Load score when session changes
   useEffect(() => {
-    calculateTotalPoints();
-  }, [lanceScore.attendance, lanceScore.one21s, lanceScore.referrals, lanceScore.tyfcb, lanceScore.visitors]);
+    const loadScore = async () => {
+      if (selectedSession?.id && lanceUser?.id) {
+        const sessionScores = await scoreService.getBySession(selectedSession.id);
+        const existingScore = sessionScores.find(s => s.userId === lanceUser.id);
 
-  const loadUsers = async () => {
+        if (existingScore) {
+          setScore(existingScore);
+          setEditedScore(existingScore.metrics);
+          setIsSaved(true);
+        } else {
+          setScore(null);
+          setEditedScore({
+            attendance: 0,
+            one21s: 0,
+            referrals: 0,
+            tyfcb: 0,
+            visitors: 0,
+          });
+          setIsSaved(true);
+        }
+      }
+    };
+
+    loadScore();
+  }, [selectedSession?.id, lanceUser?.id]);
+
+  const handleMetricChange = (metric: keyof ScoreMetrics, value: string) => {
+    const numValue = parseInt(value) || 0;
+    setEditedScore(prev => ({
+      ...prev,
+      [metric]: numValue,
+    }));
+    setIsSaved(false);
+  };
+
+  const handleSave = async () => {
+    if (!selectedSession || !lanceUser) return;
+
+    setSaving(true);
+    setSaveMessage(null);
+
     try {
-      setLoading(true);
-      const allUsers = await userService.getAll();
-      // Filter out Lance's own account
-      const otherUsers = allUsers.filter(u => u.email !== 'lance@nectafy.com');
-      setUsers(otherUsers);
+      const scoreData = {
+        userId: lanceUser.id!,
+        sessionId: selectedSession.id!,
+        seasonId: selectedSession.seasonId,
+        teamId: lanceUser.teamId || '',
+        metrics: editedScore,
+        totalPoints: calculateTotal(editedScore),
+        isDraft: false,
+        enteredBy: 'lance@nectafy.com',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      const scoreId = await scoreService.upsert(scoreData);
+      setScore({ ...scoreData, id: scoreId });
+      setIsSaved(true);
+      setSaveMessage({ type: 'success', text: 'Score saved successfully!' });
+
+      // Clear message after 3 seconds
+      setTimeout(() => setSaveMessage(null), 3000);
     } catch (error) {
-      console.error('Error loading users:', error);
-      toast.error('Failed to load users');
+      console.error('Error saving score:', error);
+      setSaveMessage({ type: 'error', text: 'Failed to save score. Please try again.' });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const calculateTotalPoints = () => {
-    const points =
-      (lanceScore.attendance * 5) +
-      (lanceScore.one21s * 5) +
-      (lanceScore.referrals * 10) +
-      (lanceScore.tyfcb * 5) +
-      (lanceScore.visitors * 10);
-
-    setLanceScore(prev => ({ ...prev, totalPoints: points }));
+  const calculateTotal = (metrics: ScoreMetrics) => {
+    if (!settings) return 0;
+    return (
+      (metrics.attendance || 0) * settings.pointValues.attendance +
+      (metrics.one21s || 0) * settings.pointValues.one21s +
+      (metrics.referrals || 0) * settings.pointValues.referrals +
+      (metrics.tyfcb || 0) * settings.pointValues.tyfcb +
+      (metrics.visitors || 0) * settings.pointValues.visitors
+    );
   };
 
-  const handleMetricChange = (metric: keyof Omit<LanceScore, 'totalPoints'>, value: string) => {
-    const numValue = Math.max(0, parseInt(value) || 0);
-    setLanceScore(prev => ({ ...prev, [metric]: numValue }));
-  };
+  const totalPoints = calculateTotal(editedScore);
 
   const addAllocation = (user: User) => {
     if (allocations.find(a => a.userId === user.id)) {
@@ -97,12 +234,13 @@ export default function LanceScoringPage() {
       userId: user.id!,
       user,
       points: 0,
+      customText: '',
     }]);
   };
 
-  const updateAllocation = (userId: string, points: number) => {
+  const updateAllocation = (userId: string, field: 'points' | 'customText', value: number | string) => {
     setAllocations(prev => prev.map(a =>
-      a.userId === userId ? { ...a, points: Math.max(0, points) } : a
+      a.userId === userId ? { ...a, [field]: field === 'points' ? Math.max(0, value as number) : value } : a
     ));
   };
 
@@ -115,53 +253,17 @@ export default function LanceScoringPage() {
   };
 
   const getRemainingPoints = () => {
-    return lanceScore.totalPoints - getTotalAllocated();
+    return totalPoints - getTotalAllocated();
   };
 
-  const handleSave = async () => {
-    if (!activeSession?.id) {
-      toast.error('No active session found');
-      return;
-    }
-
-    if (getRemainingPoints() < 0) {
-      toast.error('You have allocated more points than available!');
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      // Save Lance's allocations to localStorage for now
-      // In a real implementation, you'd save this to Firebase
-      const saveData = {
-        sessionId: activeSession.id,
-        lanceScore,
-        allocations: allocations.map(a => ({
-          userId: a.userId,
-          points: a.points,
-        })),
-        savedAt: new Date().toISOString(),
-      };
-
-      localStorage.setItem(`lance-scoring-${activeSession.id}`, JSON.stringify(saveData));
-      toast.success('Allocations saved! Ready to reveal during the game.');
-    } catch (error) {
-      console.error('Error saving:', error);
-      toast.error('Failed to save allocations');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleReveal = async () => {
-    if (!activeSession?.id) {
-      toast.error('No active session found');
+  const handleSaveAllocations = async () => {
+    if (!selectedSession?.id) {
+      toast.error('No session selected');
       return;
     }
 
     if (allocations.length === 0) {
-      toast.error('No allocations to reveal');
+      toast.error('No allocations to save');
       return;
     }
 
@@ -170,364 +272,627 @@ export default function LanceScoringPage() {
       return;
     }
 
-    if (!settings) {
-      toast.error('Settings not loaded');
-      return;
-    }
-
     try {
-      // Award each allocation as a custom bonus
-      for (const allocation of allocations) {
-        if (allocation.points <= 0) continue;
+      setSavingAllocations(true);
 
-        const userScore = scores.find(s => s.userId === allocation.userId);
-        if (!userScore) {
-          toast.error(`No score found for ${allocation.user.firstName} ${allocation.user.lastName}`);
-          continue;
-        }
+      // Save allocations to localStorage
+      const saveData = {
+        sessionId: selectedSession.id,
+        lanceScore: editedScore,
+        totalPoints: totalPoints,
+        allocations: allocations.map(a => ({
+          userId: a.userId,
+          points: a.points,
+          customText: a.customText,
+          userName: `${a.user.firstName} ${a.user.lastName}`,
+        })),
+        savedAt: new Date().toISOString(),
+      };
 
-        // Create the custom bonus
-        const awardedBonus: AwardedCustomBonus = {
-          bonusId: 'lance-bonus',
-          bonusName: "Lance's Bonus",
-          points: allocation.points,
-          awardedBy: 'lance@nectafy.com',
-          awardedAt: Timestamp.now(),
-        };
-
-        // Calculate new totals
-        const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
-        const customBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
-        const metricsTotal = (
-          ((userScore.metrics.attendance || 0) * (settings.pointValues.attendance || 0)) +
-          ((userScore.metrics.one21s || 0) * (settings.pointValues.one21s || 0)) +
-          ((userScore.metrics.referrals || 0) * (settings.pointValues.referrals || 0)) +
-          ((userScore.metrics.tyfcb || 0) * (settings.pointValues.tyfcb || 0)) +
-          ((userScore.metrics.visitors || 0) * (settings.pointValues.visitors || 0))
-        );
-
-        // Update the score document
-        await updateDoc(doc(db, 'scores', userScore.id!), {
-          customBonuses: updatedCustomBonuses,
-          totalPoints: metricsTotal + customBonusTotal,
-          updatedAt: Timestamp.now(),
-        });
-
-        // Trigger display notification
-        await fetch('/api/display', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'DISPLAY_CUSTOM_BONUS',
-            bonusName: "Lance's Bonus",
-            bonusPoints: allocation.points,
-            targetName: `${allocation.user.firstName} ${allocation.user.lastName}`,
-            isTeamBonus: false,
-          })
-        });
-
-        toast.success(`Awarded ${allocation.points} pts to ${allocation.user.firstName} ${allocation.user.lastName}`);
-      }
-
-      // Clear cache so display shows updated totals immediately
-      clearStaticDataCache();
-
-      // Clear the saved allocations
-      localStorage.removeItem(`lance-scoring-${activeSession.id}`);
-
-      // Reset the form
-      setLanceScore({
-        attendance: 0,
-        one21s: 0,
-        referrals: 0,
-        tyfcb: 0,
-        visitors: 0,
-        totalPoints: 0,
-      });
-      setAllocations([]);
-
-      toast.success('All points revealed and awarded!');
+      localStorage.setItem(`lance-allocations-${selectedSession.id}`, JSON.stringify(saveData));
+      toast.success('Allocations saved! They will be available on the Referee page to reveal during the game.');
     } catch (error) {
-      console.error('Error revealing points:', error);
-      toast.error('Failed to reveal points');
+      console.error('Error saving allocations:', error);
+      toast.error('Failed to save allocations');
+    } finally {
+      setSavingAllocations(false);
     }
   };
 
-  const loadSavedData = () => {
-    if (!activeSession?.id) return;
-
-    const saved = localStorage.getItem(`lance-scoring-${activeSession.id}`);
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        setLanceScore(data.lanceScore);
-
-        // Reconstruct allocations with user objects
-        const reconstructed = data.allocations.map((a: any) => {
-          const user = users.find(u => u.id === a.userId);
-          return user ? { userId: a.userId, user, points: a.points } : null;
-        }).filter(Boolean);
-
-        setAllocations(reconstructed);
-        toast.success('Loaded saved allocations');
-      } catch (error) {
-        console.error('Error loading saved data:', error);
+  const handleClearAllocations = () => {
+    if (confirm('Are you sure you want to clear all allocations?')) {
+      setAllocations([]);
+      if (selectedSession?.id) {
+        localStorage.removeItem(`lance-allocations-${selectedSession.id}`);
       }
+      toast.success('Allocations cleared');
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
+  if (!lanceUser) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-xl font-semibold">User Not Found</h2>
+          <p className="text-gray-600 mt-2">Lance's account not found in the system.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeSession) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+          <h2 className="text-xl font-semibold">No Sessions Available</h2>
+          <p className="text-gray-600 mt-2">Please wait for a session to be created.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-blue-50 to-purple-50">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/admin')}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft size={24} />
-              </button>
+        <div className="bg-white shadow-sm p-3 md:p-6 md:rounded-lg md:mx-4 md:mt-8 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* BNI Game Logo */}
+              <div className="flex-shrink-0">
+                <Image
+                  src="/bni-game-logo.png"
+                  alt="BNI Game"
+                  width={80}
+                  height={80}
+                  className="object-contain"
+                  priority
+                />
+              </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Lance's Scoring</h1>
-                <p className="text-gray-600 mt-1">
-                  {activeSession ? `Session: ${activeSession.name || `Week ${activeSession.weekNumber}`}` : 'No active session'}
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+                  Admin Scoring
+                </h1>
+                <p className="text-sm text-gray-600 mt-1">
+                  Lance's Personal Score & Allocations
                 </p>
               </div>
             </div>
+          </div>
 
-            <div className="flex items-center gap-3">
-              {activeSession && users.length > 0 && (
-                <button
-                  onClick={loadSavedData}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                >
-                  <Eye size={20} />
-                  Load Saved
-                </button>
-              )}
+          {/* Session Selector */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <Calendar size={16} />
+              Select Session
+            </label>
+            <select
+              value={selectedSessionId || ''}
+              onChange={(e) => setSelectedSessionId(e.target.value || null)}
+              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+            >
+              <option value="">Select a session...</option>
+              {allSessions.filter(s => !s.isArchived).map((session) => (
+                <option key={session.id} value={session.id}>
+                  {session.name || `Week ${session.weekNumber}`} - {new Date(session.date.seconds * 1000).toLocaleDateString()}
+                  {session.status === 'open' ? ' (Active)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Save message */}
+          {saveMessage && (
+            <div className={`mt-4 p-4 rounded-lg flex items-center gap-2 text-lg font-semibold ${
+              saveMessage.type === 'success' ? 'bg-green-100 text-green-800 border-2 border-green-300' : 'bg-red-100 text-red-800 border-2 border-red-300'
+            }`}>
+              {saveMessage.type === 'success' ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
+              {saveMessage.text}
+            </div>
+          )}
+        </div>
+
+        {/* Score Summary */}
+        <div className="grid grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-6 px-2 md:mx-4">
+          {/* Current Score */}
+          <div className="bg-white rounded-lg shadow-sm p-3 md:p-6">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-1 md:gap-2 text-gray-600 mb-1">
+                <UserIcon size={18} />
+                <span className="text-xs md:text-sm font-medium">Your Score</span>
+              </div>
+              <p className="text-2xl md:text-4xl font-bold text-gray-900">{totalPoints}</p>
+              <p className="text-xs text-gray-500 mt-1">Total Points</p>
+            </div>
+          </div>
+
+          {/* Saved Score */}
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-sm p-3 md:p-6 text-white">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-1 md:gap-2 mb-1">
+                <Trophy size={18} />
+                <span className="text-xs md:text-sm font-medium">Saved Score</span>
+              </div>
+              <p className="text-2xl md:text-4xl font-bold">{score ? calculateTotal(score.metrics) : 0}</p>
+              <p className="text-xs text-white/80 mt-1">Last Saved</p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Lance's Score */}
-          <div className="space-y-6">
-            {/* Metrics Input */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Calculator size={24} className="text-blue-600" />
-                Your Metrics
-              </h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Attendance (5 pts each)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={lanceScore.attendance}
-                    onChange={(e) => handleMetricChange('attendance', e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    1-2-1s (5 pts each)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={lanceScore.one21s}
-                    onChange={(e) => handleMetricChange('one21s', e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Referrals (10 pts each)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={lanceScore.referrals}
-                    onChange={(e) => handleMetricChange('referrals', e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    TYFCB (5 pts each)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={lanceScore.tyfcb}
-                    onChange={(e) => handleMetricChange('tyfcb', e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Visitors (10 pts each)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={lanceScore.visitors}
-                    onChange={(e) => handleMetricChange('visitors', e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+        {/* Scoring Card */}
+        <div className="px-4 md:mx-4">
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+            {/* User Info */}
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b">
+              <Avatar
+                src={lanceUser.avatarUrl}
+                fallbackSeed={`${lanceUser.firstName}${lanceUser.lastName}`}
+                size="lg"
+              />
+              <div className="flex-1">
+                <p className="text-xl font-semibold text-gray-900">
+                  {lanceUser.firstName} {lanceUser.lastName}
+                </p>
+                <p className="text-sm text-gray-500">Site Administrator</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Total</p>
+                <p className="text-3xl font-bold text-blue-600">{totalPoints}</p>
               </div>
             </div>
 
-            {/* Total Points */}
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg opacity-90">Total Points Available</p>
-                  <p className="text-5xl font-bold mt-2">{lanceScore.totalPoints}</p>
-                </div>
-                <Trophy size={64} className="opacity-50" />
+            {/* Scoring Grid */}
+            <div className="space-y-4">
+              {/* Attendance */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Attendance ({settings?.pointValues.attendance || 0} pts each)
+                </label>
+                <button
+                  onClick={() => handleMetricChange('attendance', editedScore.attendance === 1 ? '0' : '1')}
+                  className={`w-full py-4 rounded-lg text-base font-medium transition-colors flex items-center justify-center gap-2 ${
+                    editedScore.attendance === 1
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                    editedScore.attendance === 1
+                      ? 'bg-white border-white'
+                      : 'bg-white border-gray-400'
+                  }`}>
+                    {editedScore.attendance === 1 && (
+                      <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  Present
+                </button>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-white/20">
-                <div className="flex justify-between text-sm">
-                  <span>Allocated:</span>
-                  <span className="font-semibold">{getTotalAllocated()}</span>
+              {/* 1-2-1s */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  1-2-1s ({settings?.pointValues.one21s || 0} pts each)
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(val => (
+                    <button
+                      key={val}
+                      onClick={() => {
+                        const newVal = editedScore.one21s === val ? '0' : val.toString();
+                        handleMetricChange('one21s', newVal);
+                      }}
+                      className={`flex-1 py-3 rounded-lg text-base font-medium transition-colors ${
+                        editedScore.one21s === val
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={tempInputs.one21s ?? (editedScore.one21s > 5 ? editedScore.one21s : '')}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setTempInputs(prev => ({ ...prev, one21s: val }));
+                      const num = parseInt(val) || 0;
+                      if (num === 0 || num >= 6) {
+                        handleMetricChange('one21s', val || '0');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const numVal = parseInt(e.target.value) || 0;
+                      if (numVal > 0 && numVal < 6) {
+                        handleMetricChange('one21s', '0');
+                      }
+                      setTempInputs(prev => {
+                        const copy = { ...prev };
+                        delete copy.one21s;
+                        return copy;
+                      });
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="6+"
+                    className="w-20 px-3 py-3 text-center border-2 rounded-lg text-base"
+                  />
                 </div>
-                <div className="flex justify-between text-sm mt-1">
-                  <span>Remaining:</span>
-                  <span className={`font-semibold ${getRemainingPoints() < 0 ? 'text-red-300' : 'text-green-300'}`}>
-                    {getRemainingPoints()}
-                  </span>
+              </div>
+
+              {/* Referrals */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Referrals ({settings?.pointValues.referrals || 0} pts each)
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(val => (
+                    <button
+                      key={val}
+                      onClick={() => {
+                        const newVal = editedScore.referrals === val ? '0' : val.toString();
+                        handleMetricChange('referrals', newVal);
+                      }}
+                      className={`flex-1 py-3 rounded-lg text-base font-medium transition-colors ${
+                        editedScore.referrals === val
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={tempInputs.referrals ?? (editedScore.referrals > 5 ? editedScore.referrals : '')}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setTempInputs(prev => ({ ...prev, referrals: val }));
+                      const num = parseInt(val) || 0;
+                      if (num === 0 || num >= 6) {
+                        handleMetricChange('referrals', val || '0');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const numVal = parseInt(e.target.value) || 0;
+                      if (numVal > 0 && numVal < 6) {
+                        handleMetricChange('referrals', '0');
+                      }
+                      setTempInputs(prev => {
+                        const copy = { ...prev };
+                        delete copy.referrals;
+                        return copy;
+                      });
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="6+"
+                    className="w-20 px-3 py-3 text-center border-2 rounded-lg text-base"
+                  />
                 </div>
+              </div>
+
+              {/* TYFCB */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  TYFCB ({settings?.pointValues.tyfcb || 0} pts each)
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(val => (
+                    <button
+                      key={val}
+                      onClick={() => {
+                        const newVal = editedScore.tyfcb === val ? '0' : val.toString();
+                        handleMetricChange('tyfcb', newVal);
+                      }}
+                      className={`flex-1 py-3 rounded-lg text-base font-medium transition-colors ${
+                        editedScore.tyfcb === val
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={tempInputs.tyfcb ?? (editedScore.tyfcb > 5 ? editedScore.tyfcb : '')}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setTempInputs(prev => ({ ...prev, tyfcb: val }));
+                      const num = parseInt(val) || 0;
+                      if (num === 0 || num >= 6) {
+                        handleMetricChange('tyfcb', val || '0');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const numVal = parseInt(e.target.value) || 0;
+                      if (numVal > 0 && numVal < 6) {
+                        handleMetricChange('tyfcb', '0');
+                      }
+                      setTempInputs(prev => {
+                        const copy = { ...prev };
+                        delete copy.tyfcb;
+                        return copy;
+                      });
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="6+"
+                    className="w-20 px-3 py-3 text-center border-2 rounded-lg text-base"
+                  />
+                </div>
+              </div>
+
+              {/* Visitors */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Visitors ({settings?.pointValues.visitors || 0} pts each)
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(val => (
+                    <button
+                      key={val}
+                      onClick={() => {
+                        const newVal = editedScore.visitors === val ? '0' : val.toString();
+                        handleMetricChange('visitors', newVal);
+                      }}
+                      className={`flex-1 py-3 rounded-lg text-base font-medium transition-colors ${
+                        editedScore.visitors === val
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={tempInputs.visitors ?? (editedScore.visitors > 5 ? editedScore.visitors : '')}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setTempInputs(prev => ({ ...prev, visitors: val }));
+                      const num = parseInt(val) || 0;
+                      if (num === 0 || num >= 6) {
+                        handleMetricChange('visitors', val || '0');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const numVal = parseInt(e.target.value) || 0;
+                      if (numVal > 0 && numVal < 6) {
+                        handleMetricChange('visitors', '0');
+                      }
+                      setTempInputs(prev => {
+                        const copy = { ...prev };
+                        delete copy.visitors;
+                        return copy;
+                      });
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="6+"
+                    className="w-20 px-3 py-3 text-center border-2 rounded-lg text-base"
+                  />
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <div className="mt-6 pt-6 border-t">
+                <button
+                  onClick={handleSave}
+                  disabled={saving || isSaved}
+                  className={`w-full py-4 px-6 rounded-lg font-semibold text-lg transition-all ${
+                    isSaved
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : saving
+                      ? 'bg-blue-300 text-white'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    {saving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        <span>Saving...</span>
+                      </>
+                    ) : isSaved ? (
+                      <>
+                        <CheckCircle size={20} />
+                        <span>Saved</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save size={20} />
+                        <span>Save Score</span>
+                      </>
+                    )}
+                  </div>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Right Column - Point Allocation */}
-          <div className="space-y-6">
-            {/* Add User */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Gift size={24} className="text-purple-600" />
-                Allocate Points to Users
-              </h2>
+          {/* Point Allocation Section */}
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 mt-4">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Gift className="text-purple-600" />
+              Allocate Points to Users
+            </h2>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select User to Add
-                </label>
-                <select
-                  onChange={(e) => {
-                    const user = users.find(u => u.id === e.target.value);
-                    if (user) {
-                      addAllocation(user);
-                      e.target.value = '';
-                    }
-                  }}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  defaultValue=""
-                >
-                  <option value="" disabled>Choose a user...</option>
-                  {users
+            {/* Points Summary */}
+            <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="text-center">
+                <p className="text-xs text-gray-500">Available</p>
+                <p className="text-lg font-bold text-gray-900">{totalPoints}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-gray-500">Allocated</p>
+                <p className="text-lg font-bold text-blue-600">{getTotalAllocated()}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-gray-500">Remaining</p>
+                <p className={`text-lg font-bold ${getRemainingPoints() < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {getRemainingPoints()}
+                </p>
+              </div>
+            </div>
+
+            {/* Add User Dropdown */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select User to Add ({allUsers.length} users available)
+              </label>
+              <select
+                onChange={(e) => {
+                  console.log('Selected user ID:', e.target.value);
+                  const user = allUsers.find(u => u.id === e.target.value);
+                  console.log('Found user:', user);
+                  if (user) {
+                    addAllocation(user);
+                    e.target.value = '';
+                  }
+                }}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                defaultValue=""
+              >
+                <option value="" disabled>Choose a user...</option>
+                {allUsers.length === 0 ? (
+                  <option disabled>Loading users...</option>
+                ) : (
+                  allUsers
                     .filter(u => !allocations.find(a => a.userId === u.id))
                     .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
                     .map(user => (
                       <option key={user.id} value={user.id}>
                         {user.firstName} {user.lastName}
                       </option>
-                    ))}
-                </select>
-              </div>
+                    ))
+                )}
+              </select>
+            </div>
 
-              {/* Allocations List */}
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {allocations.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <Users size={48} className="mx-auto mb-2 opacity-50" />
-                    <p>No allocations yet. Select users above to allocate points.</p>
-                  </div>
-                ) : (
-                  allocations.map(allocation => (
-                    <div
-                      key={allocation.userId}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                    >
-                      <img
-                        src={allocation.user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${allocation.user.firstName}${allocation.user.lastName}`}
-                        alt=""
-                        className="w-10 h-10 rounded-full object-cover"
+            {/* Allocations List */}
+            <div className="space-y-3 mb-4">
+              {allocations.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <UserIcon size={48} className="mx-auto mb-2 opacity-50" />
+                  <p>No allocations yet. Select users above to allocate points.</p>
+                </div>
+              ) : (
+                allocations.map(allocation => (
+                  <div
+                    key={allocation.userId}
+                    className="border rounded-lg p-3 bg-gray-50"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Avatar
+                        src={allocation.user.avatarUrl}
+                        fallbackSeed={`${allocation.user.firstName}${allocation.user.lastName}`}
+                        size="sm"
                       />
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">
                           {allocation.user.firstName} {allocation.user.lastName}
                         </div>
                       </div>
-                      <input
-                        type="number"
-                        min="0"
-                        value={allocation.points}
-                        onChange={(e) => updateAllocation(allocation.userId, parseInt(e.target.value) || 0)}
-                        className="w-24 px-3 py-1 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-semibold"
-                        placeholder="Points"
-                      />
                       <button
                         onClick={() => removeAllocation(allocation.userId)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                       >
-                        ×
+                        <X size={20} />
                       </button>
                     </div>
-                  ))
-                )}
-              </div>
+
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Points
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={allocation.points}
+                          onChange={(e) => updateAllocation(allocation.userId, 'points', parseInt(e.target.value) || 0)}
+                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Enter points"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Custom Message (shown on Referee page)
+                        </label>
+                        <input
+                          type="text"
+                          value={allocation.customText}
+                          onChange={(e) => updateAllocation(allocation.userId, 'customText', e.target.value)}
+                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., Extra effort bonus, Great referral work, etc."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
-            {/* Actions */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="font-semibold mb-4">Actions</h3>
-              <div className="space-y-3">
+            {/* Save/Clear Buttons */}
+            {allocations.length > 0 && (
+              <div className="space-y-2">
                 <button
-                  onClick={handleSave}
-                  disabled={saving || !activeSession}
-                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  onClick={handleSaveAllocations}
+                  disabled={savingAllocations || getRemainingPoints() < 0}
+                  className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
+                    savingAllocations
+                      ? 'bg-blue-300 text-white'
+                      : getRemainingPoints() < 0
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
+                  }`}
                 >
-                  <Save size={20} />
-                  {saving ? 'Saving...' : 'Save Allocations'}
+                  {savingAllocations ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={20} />
+                      <span>Save Allocations</span>
+                    </>
+                  )}
                 </button>
 
                 <button
-                  onClick={handleReveal}
-                  disabled={!activeSession || allocations.length === 0}
-                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  onClick={handleClearAllocations}
+                  className="w-full py-2 px-4 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
                 >
-                  <Eye size={20} />
-                  Reveal & Apply Points
+                  <X size={18} />
+                  <span>Clear All</span>
                 </button>
 
                 <p className="text-xs text-gray-500 text-center">
-                  Save your allocations before the game, then reveal them during the game to apply the points to user scores.
+                  Saved allocations will appear on the Referee page for you to reveal during the game.
                 </p>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
