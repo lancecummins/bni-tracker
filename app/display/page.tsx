@@ -70,7 +70,7 @@ function DisplayPageContent() {
   // Determine which session to display
   const displaySessionId = selectedSession || sessionIdParam || activeSession?.id || null;
 
-  const { leaderboard, loading: leaderboardLoading } = useStaticLeaderboard(
+  const { leaderboard: rawLeaderboard, loading: leaderboardLoading } = useStaticLeaderboard(
     displaySessionId,
     false, // Show all scores (including drafts) since referee controls display
     refreshKey
@@ -80,6 +80,15 @@ function DisplayPageContent() {
     false, // Show all scores (including drafts) since referee controls display
     refreshKey
   );
+
+  // Filter leaderboard to exclude users without teams and Lance Cummins
+  const leaderboard = rawLeaderboard.filter(entry => {
+    // Exclude Lance Cummins
+    if (entry.user.email === 'lance@nectafy.com') return false;
+    // Exclude users without a team
+    if (!entry.user.teamId) return false;
+    return true;
+  });
 
   // Debug logging
   useEffect(() => {
