@@ -352,7 +352,7 @@ export default function SessionMetricsPage() {
                           <img
                             src={user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${user.firstName}${user.lastName}`}
                             alt=""
-                            className="w-10 h-10 rounded-full object-cover"
+                            className="w-16 h-16 rounded-full object-cover"
                           />
                           <div>
                             <div className="font-medium text-gray-900">
