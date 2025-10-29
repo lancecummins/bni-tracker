@@ -592,23 +592,39 @@ export default function RefereePage() {
     // Get scores for this team based on historical teamId in scores (not current user.teamId)
     const teamScores = scores.filter(s => s.teamId === teamId);
 
-    // Get the users who have scores for this team
-    const teamMembers = users.filter(u =>
-      (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') &&
-      u.isActive &&
-      teamScores.some(s => s.userId === u.id)
-    );
+    // Determine team members: who SHOULD be on this team?
+    const teamMemberIds = new Set<string>();
+
+    // Add users who have scores for this team (historical members)
+    teamScores.forEach(score => {
+      teamMemberIds.add(score.userId);
+    });
+
+    // For open sessions, also include current team members who haven't submitted scores yet
+    if (selectedSession?.status === 'open') {
+      users.forEach(u => {
+        if (
+          u.teamId === teamId &&
+          u.isActive &&
+          (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')
+        ) {
+          teamMemberIds.add(u.id!);
+        }
+      });
+    }
+
+    const teamMemberCount = teamMemberIds.size;
 
     let bonusPoints = 0;
     const categories: string[] = [];
 
-    // "All In" bonuses
-    if (teamScores.length === teamMembers.length && teamMembers.length > 0) {
+    // "All In" bonuses - only award if ALL team members have scores
+    if (teamScores.length === teamMemberCount && teamMemberCount > 0) {
       const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
 
       categoryList.forEach(category => {
-        const allMembersHaveCategory = teamMembers.every(member => {
-          const score = teamScores.find(s => s.userId === member.id);
+        const allMembersHaveCategory = Array.from(teamMemberIds).every(memberId => {
+          const score = teamScores.find(s => s.userId === memberId);
           return score && score.metrics[category] > 0;
         });
 
@@ -655,19 +671,17 @@ export default function RefereePage() {
             return;
           }
 
+          // Preserve historical metrics total by subtracting old bonuses from existing totalPoints
+          const oldCustomBonusTotal = (userScore.customBonuses || []).reduce((sum, b) => sum + b.points, 0);
+          const metricsTotal = userScore.totalPoints - oldCustomBonusTotal;
+
           const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
-          const customBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
-          const metricsTotal = (
-            ((userScore.metrics.attendance || 0) * (settings!.pointValues.attendance || 0)) +
-            ((userScore.metrics.one21s || 0) * (settings!.pointValues.one21s || 0)) +
-            ((userScore.metrics.referrals || 0) * (settings!.pointValues.referrals || 0)) +
-            ((userScore.metrics.tyfcb || 0) * (settings!.pointValues.tyfcb || 0)) +
-            ((userScore.metrics.visitors || 0) * (settings!.pointValues.visitors || 0))
-          );
+          const newCustomBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
+          const newTotalPoints = metricsTotal + newCustomBonusTotal;
 
           await updateDoc(doc(db, 'scores', userScore.id!), {
             customBonuses: updatedCustomBonuses,
-            totalPoints: metricsTotal + customBonusTotal,
+            totalPoints: newTotalPoints,
             updatedAt: Timestamp.now(),
           });
 
@@ -1495,19 +1509,17 @@ export default function RefereePage() {
                         awardedAt: Timestamp.now(),
                       };
 
+                      // Preserve historical metrics total by subtracting old bonuses from existing totalPoints
+                      const oldCustomBonusTotal = (userScore.customBonuses || []).reduce((sum, b) => sum + b.points, 0);
+                      const metricsTotal = userScore.totalPoints - oldCustomBonusTotal;
+
                       const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
-                      const customBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
-                      const metricsTotal = (
-                        ((userScore.metrics.attendance || 0) * (settings.pointValues.attendance || 0)) +
-                        ((userScore.metrics.one21s || 0) * (settings.pointValues.one21s || 0)) +
-                        ((userScore.metrics.referrals || 0) * (settings.pointValues.referrals || 0)) +
-                        ((userScore.metrics.tyfcb || 0) * (settings.pointValues.tyfcb || 0)) +
-                        ((userScore.metrics.visitors || 0) * (settings.pointValues.visitors || 0))
-                      );
+                      const newCustomBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
+                      const newTotalPoints = metricsTotal + newCustomBonusTotal;
 
                       await updateDoc(doc(db, 'scores', userScore.id!), {
                         customBonuses: updatedCustomBonuses,
-                        totalPoints: metricsTotal + customBonusTotal,
+                        totalPoints: newTotalPoints,
                         updatedAt: Timestamp.now(),
                       });
 
