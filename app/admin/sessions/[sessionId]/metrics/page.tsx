@@ -259,7 +259,14 @@ export default function SessionMetricsPage() {
               <input
                 type="checkbox"
                 checked={visibleColumns.attendance}
-                onChange={(e) => setVisibleColumns({...visibleColumns, attendance: e.target.checked})}
+                onChange={(e) => {
+                  setVisibleColumns({...visibleColumns, attendance: e.target.checked});
+                  if (e.target.checked) {
+                    setSortColumn('attendance');
+                    setSortDirection('desc');
+                    setHideZeroValues(true);
+                  }
+                }}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
               <span>Attendance</span>
@@ -268,7 +275,14 @@ export default function SessionMetricsPage() {
               <input
                 type="checkbox"
                 checked={visibleColumns.one21s}
-                onChange={(e) => setVisibleColumns({...visibleColumns, one21s: e.target.checked})}
+                onChange={(e) => {
+                  setVisibleColumns({...visibleColumns, one21s: e.target.checked});
+                  if (e.target.checked) {
+                    setSortColumn('one21s');
+                    setSortDirection('desc');
+                    setHideZeroValues(true);
+                  }
+                }}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
               <span>1-2-1s</span>
@@ -277,7 +291,14 @@ export default function SessionMetricsPage() {
               <input
                 type="checkbox"
                 checked={visibleColumns.referrals}
-                onChange={(e) => setVisibleColumns({...visibleColumns, referrals: e.target.checked})}
+                onChange={(e) => {
+                  setVisibleColumns({...visibleColumns, referrals: e.target.checked});
+                  if (e.target.checked) {
+                    setSortColumn('referrals');
+                    setSortDirection('desc');
+                    setHideZeroValues(true);
+                  }
+                }}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
               <span>Referrals</span>
@@ -286,7 +307,14 @@ export default function SessionMetricsPage() {
               <input
                 type="checkbox"
                 checked={visibleColumns.tyfcb}
-                onChange={(e) => setVisibleColumns({...visibleColumns, tyfcb: e.target.checked})}
+                onChange={(e) => {
+                  setVisibleColumns({...visibleColumns, tyfcb: e.target.checked});
+                  if (e.target.checked) {
+                    setSortColumn('tyfcb');
+                    setSortDirection('desc');
+                    setHideZeroValues(true);
+                  }
+                }}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
               <span>TYFCB</span>
@@ -295,7 +323,14 @@ export default function SessionMetricsPage() {
               <input
                 type="checkbox"
                 checked={visibleColumns.visitors}
-                onChange={(e) => setVisibleColumns({...visibleColumns, visitors: e.target.checked})}
+                onChange={(e) => {
+                  setVisibleColumns({...visibleColumns, visitors: e.target.checked});
+                  if (e.target.checked) {
+                    setSortColumn('visitors');
+                    setSortDirection('desc');
+                    setHideZeroValues(true);
+                  }
+                }}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
               <span>Visitors</span>
@@ -304,7 +339,14 @@ export default function SessionMetricsPage() {
               <input
                 type="checkbox"
                 checked={visibleColumns.total}
-                onChange={(e) => setVisibleColumns({...visibleColumns, total: e.target.checked})}
+                onChange={(e) => {
+                  setVisibleColumns({...visibleColumns, total: e.target.checked});
+                  if (e.target.checked) {
+                    setSortColumn('total');
+                    setSortDirection('desc');
+                    setHideZeroValues(true);
+                  }
+                }}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
               <span>Total Points</span>
