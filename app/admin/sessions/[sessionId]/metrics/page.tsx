@@ -470,7 +470,7 @@ export default function SessionMetricsPage() {
                             className="w-16 h-16 rounded-full object-cover"
                           />
                           <div>
-                            <div className="font-medium text-gray-900">
+                            <div className="text-2xl font-bold text-gray-900">
                               {user.firstName} {user.lastName}
                             </div>
                           </div>
@@ -478,42 +478,42 @@ export default function SessionMetricsPage() {
                       </td>
                       {visibleColumns.attendance && (
                         <td className={`px-6 py-4 text-center ${sortColumn === 'attendance' ? 'bg-blue-50' : ''}`}>
-                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                          <span className={`text-4xl font-bold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                             {score?.metrics.attendance || 0}
                           </span>
                         </td>
                       )}
                       {visibleColumns.one21s && (
                         <td className={`px-6 py-4 text-center ${sortColumn === 'one21s' ? 'bg-blue-50' : ''}`}>
-                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                          <span className={`text-4xl font-bold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                             {score?.metrics.one21s || 0}
                           </span>
                         </td>
                       )}
                       {visibleColumns.referrals && (
                         <td className={`px-6 py-4 text-center ${sortColumn === 'referrals' ? 'bg-blue-50' : ''}`}>
-                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                          <span className={`text-4xl font-bold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                             {score?.metrics.referrals || 0}
                           </span>
                         </td>
                       )}
                       {visibleColumns.tyfcb && (
                         <td className={`px-6 py-4 text-center ${sortColumn === 'tyfcb' ? 'bg-blue-50' : ''}`}>
-                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                          <span className={`text-4xl font-bold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                             {score?.metrics.tyfcb || 0}
                           </span>
                         </td>
                       )}
                       {visibleColumns.visitors && (
                         <td className={`px-6 py-4 text-center ${sortColumn === 'visitors' ? 'bg-blue-50' : ''}`}>
-                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                          <span className={`text-4xl font-bold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                             {score?.metrics.visitors || 0}
                           </span>
                         </td>
                       )}
                       {visibleColumns.total && (
                         <td className={`px-6 py-4 text-center ${sortColumn === 'total' ? 'bg-blue-50' : ''}`}>
-                          <span className={`text-xl font-bold ${
+                          <span className={`text-5xl font-bold ${
                             isTopThree ? 'text-yellow-600' : hasScore ? 'text-gray-900' : 'text-gray-400'
                           }`}>
                             {score?.totalPoints || 0}
