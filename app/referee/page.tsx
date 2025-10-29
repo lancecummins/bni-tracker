@@ -186,7 +186,7 @@ export default function RefereePage() {
 
       setRandomOrder(roundRobinOrder);
     }
-  }, [sortMode, searchFiltered, randomOrder.length]);
+  }, [sortMode, randomOrder.length, filterMode, searchTerm]);
 
   // Helper function to get user score
   const getUserScore = (userId: string) => {
