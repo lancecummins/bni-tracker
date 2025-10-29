@@ -247,7 +247,7 @@ export default function SessionMetricsPage() {
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-100 border-b-2 border-gray-200">
+              <thead className="bg-gray-100 border-b-2 border-gray-200 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">#</th>
                   <th
