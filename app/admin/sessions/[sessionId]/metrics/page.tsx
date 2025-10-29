@@ -217,7 +217,9 @@ export default function SessionMetricsPage() {
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">#</th>
                   <th
-                    className="px-6 py-4 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors"
+                    className={`px-6 py-4 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
+                      sortColumn === 'name' ? 'bg-blue-100' : ''
+                    }`}
                     onClick={() => handleSort('name')}
                   >
                     <div className="flex items-center gap-2">
@@ -230,7 +232,9 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className="px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors"
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
+                      sortColumn === 'attendance' ? 'bg-blue-100' : ''
+                    }`}
                     onClick={() => handleSort('attendance')}
                   >
                     <div className="flex items-center justify-center gap-2">
@@ -243,7 +247,9 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className="px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors"
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
+                      sortColumn === 'one21s' ? 'bg-blue-100' : ''
+                    }`}
                     onClick={() => handleSort('one21s')}
                   >
                     <div className="flex items-center justify-center gap-2">
@@ -256,7 +262,9 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className="px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors"
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
+                      sortColumn === 'referrals' ? 'bg-blue-100' : ''
+                    }`}
                     onClick={() => handleSort('referrals')}
                   >
                     <div className="flex items-center justify-center gap-2">
@@ -269,7 +277,9 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className="px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors"
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
+                      sortColumn === 'tyfcb' ? 'bg-blue-100' : ''
+                    }`}
                     onClick={() => handleSort('tyfcb')}
                   >
                     <div className="flex items-center justify-center gap-2">
@@ -282,7 +292,9 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className="px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors"
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
+                      sortColumn === 'visitors' ? 'bg-blue-100' : ''
+                    }`}
                     onClick={() => handleSort('visitors')}
                   >
                     <div className="flex items-center justify-center gap-2">
@@ -295,7 +307,9 @@ export default function SessionMetricsPage() {
                     </div>
                   </th>
                   <th
-                    className="px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors"
+                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors ${
+                      sortColumn === 'total' ? 'bg-blue-100' : ''
+                    }`}
                     onClick={() => handleSort('total')}
                   >
                     <div className="flex items-center justify-center gap-2">
@@ -333,7 +347,7 @@ export default function SessionMetricsPage() {
                           index + 1
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className={`px-6 py-4 ${sortColumn === 'name' ? 'bg-blue-50' : ''}`}>
                         <div className="flex items-center gap-3">
                           <img
                             src={user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${user.firstName}${user.lastName}`}
@@ -347,32 +361,32 @@ export default function SessionMetricsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className={`px-6 py-4 text-center ${sortColumn === 'attendance' ? 'bg-blue-50' : ''}`}>
                         <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                           {score?.metrics.attendance || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className={`px-6 py-4 text-center ${sortColumn === 'one21s' ? 'bg-blue-50' : ''}`}>
                         <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                           {score?.metrics.one21s || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className={`px-6 py-4 text-center ${sortColumn === 'referrals' ? 'bg-blue-50' : ''}`}>
                         <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                           {score?.metrics.referrals || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className={`px-6 py-4 text-center ${sortColumn === 'tyfcb' ? 'bg-blue-50' : ''}`}>
                         <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                           {score?.metrics.tyfcb || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className={`px-6 py-4 text-center ${sortColumn === 'visitors' ? 'bg-blue-50' : ''}`}>
                         <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                           {score?.metrics.visitors || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className={`px-6 py-4 text-center ${sortColumn === 'total' ? 'bg-blue-50' : ''}`}>
                         <span className={`text-xl font-bold ${
                           isTopThree ? 'text-yellow-600' : hasScore ? 'text-gray-900' : 'text-gray-400'
                         }`}>
