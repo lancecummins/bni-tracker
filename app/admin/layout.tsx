@@ -39,6 +39,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const userRecord = users.find(u => u.email === currentUser?.email);
 
+  // Check if we're on the metrics page to hide the sidebar
+  const isMetricsPage = pathname?.includes('/metrics');
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -70,6 +73,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       setLoggingOut(false);
     }
   };
+
+  // If on metrics page, render without sidebar
+  if (isMetricsPage) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
