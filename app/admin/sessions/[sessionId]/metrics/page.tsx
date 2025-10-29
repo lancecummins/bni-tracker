@@ -25,6 +25,7 @@ export default function SessionMetricsPage() {
   const [loading, setLoading] = useState(true);
   const [sortColumn, setSortColumn] = useState<SortColumn>('total');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [hideZeroValues, setHideZeroValues] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -75,9 +76,33 @@ export default function SessionMetricsPage() {
   };
 
   const getSortedUsers = () => {
-    const sorted = [...usersWithScores];
+    let filtered = [...usersWithScores];
 
-    sorted.sort((a, b) => {
+    // Filter out rows where the sorted column value is less than 1
+    if (hideZeroValues) {
+      filtered = filtered.filter((item) => {
+        switch (sortColumn) {
+          case 'name':
+            return true; // Always show when sorting by name
+          case 'attendance':
+            return (item.score?.metrics.attendance || 0) >= 1;
+          case 'one21s':
+            return (item.score?.metrics.one21s || 0) >= 1;
+          case 'referrals':
+            return (item.score?.metrics.referrals || 0) >= 1;
+          case 'tyfcb':
+            return (item.score?.metrics.tyfcb || 0) >= 1;
+          case 'visitors':
+            return (item.score?.metrics.visitors || 0) >= 1;
+          case 'total':
+            return (item.score?.totalPoints || 0) >= 1;
+          default:
+            return true;
+        }
+      });
+    }
+
+    filtered.sort((a, b) => {
       let comparison = 0;
 
       switch (sortColumn) {
@@ -109,7 +134,7 @@ export default function SessionMetricsPage() {
       return sortDirection === 'asc' ? comparison : -comparison;
     });
 
-    return sorted;
+    return filtered;
   };
 
   const exportToCSV = () => {
@@ -196,8 +221,17 @@ export default function SessionMetricsPage() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Users size={20} />
-                {usersWithScores.length} Users
+                {getSortedUsers().length} / {usersWithScores.length} Users
               </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hideZeroValues}
+                  onChange={(e) => setHideZeroValues(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                />
+                <span>Hide rows with 0 in sorted column</span>
+              </label>
               <button
                 onClick={exportToCSV}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
