@@ -48,6 +48,7 @@ export default function LanceScoringPage() {
   // Allocation state
   const [allocations, setAllocations] = useState<UserAllocation[]>([]);
   const [savingAllocations, setSavingAllocations] = useState(false);
+  const [allocationsSaved, setAllocationsSaved] = useState(false);
 
   const { scores: sessionScores } = useSessionScores(selectedSession?.id || null);
 
@@ -236,16 +237,19 @@ export default function LanceScoringPage() {
       points: 0,
       customText: '',
     }]);
+    setAllocationsSaved(false);
   };
 
   const updateAllocation = (userId: string, field: 'points' | 'customText', value: number | string) => {
     setAllocations(prev => prev.map(a =>
       a.userId === userId ? { ...a, [field]: field === 'points' ? Math.max(0, value as number) : value } : a
     ));
+    setAllocationsSaved(false); // Mark as unsaved when changes are made
   };
 
   const removeAllocation = (userId: string) => {
     setAllocations(prev => prev.filter(a => a.userId !== userId));
+    setAllocationsSaved(false);
   };
 
   const getTotalAllocated = () => {
@@ -290,10 +294,12 @@ export default function LanceScoringPage() {
       };
 
       localStorage.setItem(`lance-allocations-${selectedSession.id}`, JSON.stringify(saveData));
-      toast.success('Allocations saved! They will be available on the Referee page to reveal during the game.');
+      setAllocationsSaved(true);
+      toast.success('Allocations saved!');
     } catch (error) {
       console.error('Error saving allocations:', error);
       toast.error('Failed to save allocations');
+      setAllocationsSaved(false);
     } finally {
       setSavingAllocations(false);
     }
@@ -302,6 +308,7 @@ export default function LanceScoringPage() {
   const handleClearAllocations = () => {
     if (confirm('Are you sure you want to clear all allocations?')) {
       setAllocations([]);
+      setAllocationsSaved(false);
       if (selectedSession?.id) {
         localStorage.removeItem(`lance-allocations-${selectedSession.id}`);
       }
@@ -856,12 +863,26 @@ export default function LanceScoringPage() {
             {/* Save/Clear Buttons */}
             {allocations.length > 0 && (
               <div className="space-y-2">
+                {allocationsSaved && (
+                  <div className="p-4 bg-green-100 border-2 border-green-400 rounded-lg flex items-center gap-3">
+                    <CheckCircle className="text-green-600 flex-shrink-0" size={24} />
+                    <div>
+                      <p className="font-semibold text-green-800">Allocations Saved!</p>
+                      <p className="text-sm text-green-700">
+                        Ready to reveal on the Referee page during the game
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={handleSaveAllocations}
-                  disabled={savingAllocations || getRemainingPoints() < 0}
+                  disabled={savingAllocations || getRemainingPoints() < 0 || (allocationsSaved && allocations.length > 0)}
                   className={`w-full py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
                     savingAllocations
                       ? 'bg-blue-300 text-white'
+                      : allocationsSaved
+                      ? 'bg-green-100 text-green-700 border-2 border-green-400'
                       : getRemainingPoints() < 0
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
@@ -871,6 +892,11 @@ export default function LanceScoringPage() {
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                       <span>Saving...</span>
+                    </>
+                  ) : allocationsSaved ? (
+                    <>
+                      <CheckCircle size={20} />
+                      <span>Saved</span>
                     </>
                   ) : (
                     <>
@@ -888,9 +914,11 @@ export default function LanceScoringPage() {
                   <span>Clear All</span>
                 </button>
 
-                <p className="text-xs text-gray-500 text-center">
-                  Saved allocations will appear on the Referee page for you to reveal during the game.
-                </p>
+                {!allocationsSaved && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Saved allocations will appear on the Referee page for you to reveal during the game.
+                  </p>
+                )}
               </div>
             )}
           </div>
