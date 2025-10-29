@@ -318,7 +318,6 @@ export default function SessionMetricsPage() {
             <table className="w-full">
               <thead className="bg-gray-100 border-b-2 border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 sticky top-0 bg-gray-100 z-10">#</th>
                   <th
                     className={`px-6 py-4 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
                       sortColumn === 'name' ? 'bg-blue-100' : 'bg-gray-100'
@@ -440,20 +439,16 @@ export default function SessionMetricsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {getSortedUsers().map(({ user, score }, index) => {
-                  const isTopThree = index < 3 && (score?.totalPoints || 0) > 0;
                   const hasScore = score !== null;
 
                   return (
                     <tr
                       key={user.id}
                       className={`
-                        ${isTopThree ? 'bg-yellow-50' : hasScore ? 'bg-white' : 'bg-gray-50'}
+                        ${hasScore ? 'bg-white' : 'bg-gray-50'}
                         hover:bg-gray-100 transition-colors
                       `}
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {index + 1}
-                      </td>
                       <td className={`px-6 py-4 ${sortColumn === 'name' ? 'bg-blue-50' : ''}`}>
                         <div className="flex items-center gap-3">
                           <img
@@ -505,9 +500,7 @@ export default function SessionMetricsPage() {
                       )}
                       {visibleColumns.total && (
                         <td className={`px-6 py-4 text-center ${sortColumn === 'total' ? 'bg-blue-50' : ''}`}>
-                          <span className={`text-5xl font-bold ${
-                            isTopThree ? 'text-yellow-600' : hasScore ? 'text-gray-900' : 'text-gray-400'
-                          }`}>
+                          <span className={`text-5xl font-bold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                             {score?.totalPoints || 0}
                           </span>
                         </td>
