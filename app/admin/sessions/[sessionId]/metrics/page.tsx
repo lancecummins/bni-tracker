@@ -452,15 +452,7 @@ export default function SessionMetricsPage() {
                       `}
                     >
                       <td className="px-6 py-4 text-sm text-gray-600">
-                        {index === 0 && (score?.totalPoints || 0) > 0 ? (
-                          <span className="text-xl">🥇</span>
-                        ) : index === 1 && (score?.totalPoints || 0) > 0 ? (
-                          <span className="text-xl">🥈</span>
-                        ) : index === 2 && (score?.totalPoints || 0) > 0 ? (
-                          <span className="text-xl">🥉</span>
-                        ) : (
-                          index + 1
-                        )}
+                        {index + 1}
                       </td>
                       <td className={`px-6 py-4 ${sortColumn === 'name' ? 'bg-blue-50' : ''}`}>
                         <div className="flex items-center gap-3">
