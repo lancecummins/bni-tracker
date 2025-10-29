@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { sessionService, scoreService, userService } from '@/lib/firebase/services';
 import { Session, Score, User } from '@/lib/types';
-import { ArrowLeft, Download, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Download, Users, ArrowUpDown, ArrowUp, ArrowDown, Monitor } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 interface UserWithScore {
   user: User;
@@ -38,6 +40,29 @@ export default function SessionMetricsPage() {
   useEffect(() => {
     loadData();
   }, [sessionId]);
+
+  // Track scroll and send to display
+  useEffect(() => {
+    let scrollTimeout: NodeJS.Timeout;
+
+    const handleScroll = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const scrollY = window.scrollY;
+        fetch('/api/display', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'scroll_update', scrollY }),
+        }).catch(() => {}); // Silent fail if display isn't connected
+      }, 100); // Debounce scroll events
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
 
   const loadData = async () => {
     try {
@@ -145,6 +170,31 @@ export default function SessionMetricsPage() {
     return filtered;
   };
 
+  const pushToDisplay = async () => {
+    try {
+      await setDoc(doc(db, 'displaySettings', 'metricsView'), {
+        sessionId,
+        visibleColumns,
+        sortColumn,
+        sortDirection,
+        hideZeroValues,
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Trigger display update via API
+      await fetch('/api/display', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'metrics_update' }),
+      });
+
+      toast.success('Pushed to display! View at /display/metrics');
+    } catch (error) {
+      console.error('Error pushing to display:', error);
+      toast.error('Failed to push to display');
+    }
+  };
+
   const exportToCSV = () => {
     const headers = ['Name', 'Email', 'Attendance', '1-2-1s', 'Referrals', 'TYFCB', 'Visitors', 'Total Points'];
     const rows = usersWithScores.map(({ user, score }) => [
@@ -240,6 +290,13 @@ export default function SessionMetricsPage() {
                 />
                 <span>Hide rows with 0 in sorted column</span>
               </label>
+              <button
+                onClick={pushToDisplay}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Monitor size={20} />
+                Push to Display
+              </button>
               <button
                 onClick={exportToCSV}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
