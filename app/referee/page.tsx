@@ -1391,6 +1391,16 @@ export default function RefereePage() {
                     }
                   </span>
                 </p>
+                {awardBonusTarget?.type === 'individual' && awardBonusTarget.user && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-blue-900">Current Points:</span>
+                      <span className="text-lg font-bold text-blue-600">
+                        {scores.find(s => s.userId === awardBonusTarget.user.id)?.totalPoints || 0}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
