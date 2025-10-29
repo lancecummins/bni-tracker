@@ -292,9 +292,6 @@ export default function TeamDisplayPage() {
                           </span>
                         )}
                       </div>
-                      <div className="text-white/60 text-xs truncate">
-                        {member.user.email}
-                      </div>
                     </div>
                   </div>
 
