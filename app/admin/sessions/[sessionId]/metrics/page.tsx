@@ -26,6 +26,14 @@ export default function SessionMetricsPage() {
   const [sortColumn, setSortColumn] = useState<SortColumn>('total');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [hideZeroValues, setHideZeroValues] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState({
+    attendance: true,
+    one21s: true,
+    referrals: true,
+    tyfcb: true,
+    visitors: true,
+    total: true,
+  });
 
   useEffect(() => {
     loadData();
@@ -243,6 +251,67 @@ export default function SessionMetricsPage() {
           </div>
         </div>
 
+        {/* Column Selector */}
+        <div className="bg-white rounded-lg shadow p-4 mb-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-semibold text-gray-700">Show Columns:</span>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={visibleColumns.attendance}
+                onChange={(e) => setVisibleColumns({...visibleColumns, attendance: e.target.checked})}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span>Attendance</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={visibleColumns.one21s}
+                onChange={(e) => setVisibleColumns({...visibleColumns, one21s: e.target.checked})}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span>1-2-1s</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={visibleColumns.referrals}
+                onChange={(e) => setVisibleColumns({...visibleColumns, referrals: e.target.checked})}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span>Referrals</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={visibleColumns.tyfcb}
+                onChange={(e) => setVisibleColumns({...visibleColumns, tyfcb: e.target.checked})}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span>TYFCB</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={visibleColumns.visitors}
+                onChange={(e) => setVisibleColumns({...visibleColumns, visitors: e.target.checked})}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span>Visitors</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={visibleColumns.total}
+                onChange={(e) => setVisibleColumns({...visibleColumns, total: e.target.checked})}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span>Total Points</span>
+            </label>
+          </div>
+        </div>
+
         {/* Metrics Grid */}
         <div className="bg-white rounded-lg shadow">
           <div className="overflow-x-auto">
@@ -265,96 +334,108 @@ export default function SessionMetricsPage() {
                       )}
                     </div>
                   </th>
-                  <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
-                      sortColumn === 'attendance' ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}
-                    onClick={() => handleSort('attendance')}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      Attendance
-                      {sortColumn === 'attendance' ? (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      ) : (
-                        <ArrowUpDown size={16} className="text-gray-400" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
-                      sortColumn === 'one21s' ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}
-                    onClick={() => handleSort('one21s')}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      1-2-1s
-                      {sortColumn === 'one21s' ? (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      ) : (
-                        <ArrowUpDown size={16} className="text-gray-400" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
-                      sortColumn === 'referrals' ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}
-                    onClick={() => handleSort('referrals')}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      Referrals
-                      {sortColumn === 'referrals' ? (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      ) : (
-                        <ArrowUpDown size={16} className="text-gray-400" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
-                      sortColumn === 'tyfcb' ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}
-                    onClick={() => handleSort('tyfcb')}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      TYFCB
-                      {sortColumn === 'tyfcb' ? (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      ) : (
-                        <ArrowUpDown size={16} className="text-gray-400" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
-                      sortColumn === 'visitors' ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}
-                    onClick={() => handleSort('visitors')}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      Visitors
-                      {sortColumn === 'visitors' ? (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      ) : (
-                        <ArrowUpDown size={16} className="text-gray-400" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
-                      sortColumn === 'total' ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}
-                    onClick={() => handleSort('total')}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      Total Points
-                      {sortColumn === 'total' ? (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      ) : (
-                        <ArrowUpDown size={16} className="text-gray-400" />
-                      )}
-                    </div>
-                  </th>
+                  {visibleColumns.attendance && (
+                    <th
+                      className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                        sortColumn === 'attendance' ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}
+                      onClick={() => handleSort('attendance')}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        Attendance
+                        {sortColumn === 'attendance' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                        ) : (
+                          <ArrowUpDown size={16} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.one21s && (
+                    <th
+                      className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                        sortColumn === 'one21s' ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}
+                      onClick={() => handleSort('one21s')}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        1-2-1s
+                        {sortColumn === 'one21s' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                        ) : (
+                          <ArrowUpDown size={16} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.referrals && (
+                    <th
+                      className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                        sortColumn === 'referrals' ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}
+                      onClick={() => handleSort('referrals')}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        Referrals
+                        {sortColumn === 'referrals' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                        ) : (
+                          <ArrowUpDown size={16} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.tyfcb && (
+                    <th
+                      className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                        sortColumn === 'tyfcb' ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}
+                      onClick={() => handleSort('tyfcb')}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        TYFCB
+                        {sortColumn === 'tyfcb' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                        ) : (
+                          <ArrowUpDown size={16} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.visitors && (
+                    <th
+                      className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                        sortColumn === 'visitors' ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}
+                      onClick={() => handleSort('visitors')}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        Visitors
+                        {sortColumn === 'visitors' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                        ) : (
+                          <ArrowUpDown size={16} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.total && (
+                    <th
+                      className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                        sortColumn === 'total' ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}
+                      onClick={() => handleSort('total')}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        Total Points
+                        {sortColumn === 'total' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                        ) : (
+                          <ArrowUpDown size={16} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -395,38 +476,50 @@ export default function SessionMetricsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className={`px-6 py-4 text-center ${sortColumn === 'attendance' ? 'bg-blue-50' : ''}`}>
-                        <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
-                          {score?.metrics.attendance || 0}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-4 text-center ${sortColumn === 'one21s' ? 'bg-blue-50' : ''}`}>
-                        <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
-                          {score?.metrics.one21s || 0}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-4 text-center ${sortColumn === 'referrals' ? 'bg-blue-50' : ''}`}>
-                        <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
-                          {score?.metrics.referrals || 0}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-4 text-center ${sortColumn === 'tyfcb' ? 'bg-blue-50' : ''}`}>
-                        <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
-                          {score?.metrics.tyfcb || 0}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-4 text-center ${sortColumn === 'visitors' ? 'bg-blue-50' : ''}`}>
-                        <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
-                          {score?.metrics.visitors || 0}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-4 text-center ${sortColumn === 'total' ? 'bg-blue-50' : ''}`}>
-                        <span className={`text-xl font-bold ${
-                          isTopThree ? 'text-yellow-600' : hasScore ? 'text-gray-900' : 'text-gray-400'
-                        }`}>
-                          {score?.totalPoints || 0}
-                        </span>
-                      </td>
+                      {visibleColumns.attendance && (
+                        <td className={`px-6 py-4 text-center ${sortColumn === 'attendance' ? 'bg-blue-50' : ''}`}>
+                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {score?.metrics.attendance || 0}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.one21s && (
+                        <td className={`px-6 py-4 text-center ${sortColumn === 'one21s' ? 'bg-blue-50' : ''}`}>
+                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {score?.metrics.one21s || 0}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.referrals && (
+                        <td className={`px-6 py-4 text-center ${sortColumn === 'referrals' ? 'bg-blue-50' : ''}`}>
+                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {score?.metrics.referrals || 0}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.tyfcb && (
+                        <td className={`px-6 py-4 text-center ${sortColumn === 'tyfcb' ? 'bg-blue-50' : ''}`}>
+                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {score?.metrics.tyfcb || 0}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.visitors && (
+                        <td className={`px-6 py-4 text-center ${sortColumn === 'visitors' ? 'bg-blue-50' : ''}`}>
+                          <span className={`text-lg font-semibold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {score?.metrics.visitors || 0}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.total && (
+                        <td className={`px-6 py-4 text-center ${sortColumn === 'total' ? 'bg-blue-50' : ''}`}>
+                          <span className={`text-xl font-bold ${
+                            isTopThree ? 'text-yellow-600' : hasScore ? 'text-gray-900' : 'text-gray-400'
+                          }`}>
+                            {score?.totalPoints || 0}
+                          </span>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
