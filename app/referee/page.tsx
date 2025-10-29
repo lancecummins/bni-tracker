@@ -547,8 +547,15 @@ export default function RefereePage() {
   const getTeamBonuses = (teamId: string) => {
     if (!settings) return { total: 0, categories: [], customBonuses: [] };
 
-    const teamMembers = users.filter(u => u.teamId === teamId && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
-    const teamScores = scores.filter(s => teamMembers.some(m => m.id === s.userId));
+    // Get scores for this team based on historical teamId in scores (not current user.teamId)
+    const teamScores = scores.filter(s => s.teamId === teamId);
+
+    // Get the users who have scores for this team
+    const teamMembers = users.filter(u =>
+      (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') &&
+      u.isActive &&
+      teamScores.some(s => s.userId === u.id)
+    );
 
     let bonusPoints = 0;
     const categories: string[] = [];
@@ -559,7 +566,7 @@ export default function RefereePage() {
 
       categoryList.forEach(category => {
         const allMembersHaveCategory = teamMembers.every(member => {
-          const score = scores.find(s => s.userId === member.id);
+          const score = teamScores.find(s => s.userId === member.id);
           return score && score.metrics[category] > 0;
         });
 
