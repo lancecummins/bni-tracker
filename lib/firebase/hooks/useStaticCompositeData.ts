@@ -189,8 +189,6 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
       // Check if bonuses have been revealed by referee OR if session is closed
       const teamBonusRevealed = team.id && (revealedBonusTeamIds.has(team.id) || session?.status === 'closed');
 
-      console.log(`[BONUS DEBUG] Team: ${team.name}, Status: ${session?.status}, Revealed: ${teamBonusRevealed}, AllMembers: ${allTeamMembers.length}, TeamScores: ${teamScores.length}`);
-
       // Calculate bonuses based on ALL team members (not just revealed ones)
       // But only show them if referee has revealed them OR session is finalized
       if (settings && allTeamMembers.length > 0 && teamBonusRevealed) {
@@ -200,15 +198,10 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
           // Check if all team members have points in this category
           const allMembersHaveCategory = allTeamMembers.every((member) => {
             const score = teamScores.find((s) => s.userId === member.id);
-            const hasCategory = score && score.metrics[category] > 0;
-            if (!hasCategory) {
-              console.log(`[BONUS DEBUG] ${team.name} - Member ${member.firstName} missing ${category}`);
-            }
-            return hasCategory;
+            return score && score.metrics[category] > 0;
           });
 
           if (allMembersHaveCategory && settings.bonusValues) {
-            console.log(`[BONUS DEBUG] ${team.name} - All In for ${category}! +${settings.bonusValues[category]} pts`);
             bonusPoints += settings.bonusValues[category];
             bonusCategories.push(category);
           }

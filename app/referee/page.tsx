@@ -118,9 +118,32 @@ export default function RefereePage() {
     return unsubscribe;
   }, []);
 
-  // Get active members and team leaders
-  const activeMembers = users
-    .filter(u => u.isActive && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin'));
+  // Helper function to get a user's team for the current session
+  // Uses the teamId from their score (historical) if available, otherwise their current team
+  const getUserTeamForSession = (userId: string) => {
+    const userScore = scores.find(s => s.userId === userId);
+    if (userScore?.teamId) {
+      return userScore.teamId;
+    }
+    const user = users.find(u => u.id === userId);
+    return user?.teamId;
+  };
+
+  // Get members to display
+  // For historical sessions, include anyone who has a score in this session
+  // For current/active session, only show currently active members
+  const activeMembers = users.filter(u => {
+    const hasScoreInSession = scores.some(s => s.userId === u.id);
+    const isRelevantRole = u.role === 'member' || u.role === 'team-leader' || u.role === 'admin';
+
+    // If user has a score in this session, show them regardless of current active status
+    if (hasScoreInSession && isRelevantRole) {
+      return true;
+    }
+
+    // Otherwise, only show currently active users
+    return u.isActive && isRelevantRole;
+  });
 
   // Apply filters
   const filteredByMode = activeMembers.filter(member => {
@@ -143,7 +166,9 @@ export default function RefereePage() {
   // Filter by search term
   const searchFiltered = filteredByMode.filter(member => {
     const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
-    const team = teams.find(t => t.id === member.teamId);
+    // Use historical team from score if available
+    const memberTeamId = member.id ? getUserTeamForSession(member.id) : member.teamId;
+    const team = teams.find(t => t.id === memberTeamId);
     const teamName = team?.name.toLowerCase() || '';
     return fullName.includes(searchTerm.toLowerCase()) || teamName.includes(searchTerm.toLowerCase());
   });
@@ -842,8 +867,14 @@ export default function RefereePage() {
               <div className="grid grid-cols-4 gap-2">
                 {teams
                   .map(team => {
-                    const teamMembers = users.filter(u => u.teamId === team.id && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
-                    const teamScores = scores.filter(s => teamMembers.some(m => m.id === s.userId));
+                    // Get scores for this team based on historical teamId in scores (not current user.teamId)
+                    const teamScores = scores.filter(s => s.teamId === team.id);
+
+                    // Get users who have scores for this team
+                    const teamMembers = users.filter(u =>
+                      (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') &&
+                      teamScores.some(s => s.userId === u.id)
+                    );
 
                     const memberPoints = teamScores.reduce((sum, score) => sum + (score.totalPoints || 0), 0);
                     const bonuses = getTeamBonuses(team.id!);
@@ -975,7 +1006,8 @@ export default function RefereePage() {
         {sortMode === 'team' ? (
           // Group by team
           teams.map(team => {
-            const teamMembers = filteredMembers.filter(m => m.teamId === team.id);
+            // Filter members based on their historical team assignment in this session
+            const teamMembers = filteredMembers.filter(m => getUserTeamForSession(m.id!) === team.id);
             if (teamMembers.length === 0) return null;
 
             const bonuses = getTeamBonuses(team.id!);
@@ -1171,7 +1203,9 @@ export default function RefereePage() {
               const scoreStatus = getScoreStatus(member.id!);
               const totalPoints = getUserScore(member.id!);
               const isShown = member.id && shownUserIds.has(member.id);
-              const memberTeam = teams.find(t => t.id === member.teamId);
+              // Use historical team from score if available
+              const memberTeamId = getUserTeamForSession(member.id!);
+              const memberTeam = teams.find(t => t.id === memberTeamId);
 
               return (
                 <div
