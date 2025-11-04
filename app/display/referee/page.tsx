@@ -59,10 +59,10 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
         currentAudio.currentTime = 0;
       }
 
-      const showUserAudio = new Audio('/sounds/show-user.mp3');
-      showUserAudio.volume = 0.5;
-      showUserAudio.play().catch(err => console.log('Audio play failed:', err));
-      setCurrentAudio(showUserAudio);
+      // const showUserAudio = new Audio('/sounds/show-user.mp3'); // DISABLED
+      // showUserAudio.volume = 0.5;
+      // showUserAudio.play().catch(err => console.log('Audio play failed:', err));
+      // setCurrentAudio(showUserAudio);
 
       // Start animation sequence
       setAnimatingStats(true);
@@ -98,9 +98,9 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
         const timeoutId = setTimeout(() => {
           setRevealedStats(prev => ({ ...prev, [category.key]: true }));
 
-          const audio = new Audio('/sounds/stat-reveal.mp3');
-          audio.volume = 0.5;
-          audio.play().catch(err => console.log('Audio play failed:', err));
+          // const audio = new Audio('/sounds/stat-reveal.mp3'); // DISABLED
+          // audio.volume = 0.5;
+          // audio.play().catch(err => console.log('Audio play failed:', err));
         }, currentDelay);
         timeoutIdsRef.current.push(timeoutId);
         currentDelay += 2000;
@@ -109,9 +109,9 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
       const finalTimeoutId = setTimeout(() => {
         setRevealedStats(prev => ({ ...prev, total: true }));
 
-        const audio = new Audio('/sounds/total-reveal.mp3');
-        audio.volume = 0.6;
-        audio.play().catch(err => console.log('Audio play failed:', err));
+        // const audio = new Audio('/sounds/total-reveal.mp3'); // DISABLED
+        // audio.volume = 0.6;
+        // audio.play().catch(err => console.log('Audio play failed:', err));
       }, currentDelay);
       timeoutIdsRef.current.push(finalTimeoutId);
     }

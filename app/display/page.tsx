@@ -210,12 +210,12 @@ function DisplayPageContent() {
         if (data.type === 'DISPLAY_TEAM_BONUS') {
           setDisplayData(data);
           if (bonusRevealRef.current) {
-            bonusRevealRef.current.play().catch(err => console.log('Bonus sound failed:', err));
+            // bonusRevealRef.current.play().catch(err => console.log('Bonus sound failed:', err)); // DISABLED
           }
         } else if (data.type === 'DISPLAY_CUSTOM_BONUS') {
           setDisplayData(data);
           if (bonusRevealRef.current) {
-            bonusRevealRef.current.play().catch(err => console.log('Bonus sound failed:', err));
+            // bonusRevealRef.current.play().catch(err => console.log('Bonus sound failed:', err)); // DISABLED
           }
         } else if (data.type === 'CLEAR_DISPLAY') {
           console.log('[Display] CLEAR_DISPLAY received with sessionId:', data.sessionId);
@@ -382,16 +382,16 @@ function DisplayPageContent() {
         celebrationAudioRef.current.currentTime = 0;
       }
     } else {
-      // Play theme music when showing scoreboard
-      if (!themeAudio) {
-        const audio = new Audio('/sounds/bni-game-theme.mp3');
-        audio.volume = 0.3;
-        audio.loop = true;
-        audio.play().catch(err => console.log('Audio play failed:', err));
-        setThemeAudio(audio);
-      } else {
-        themeAudio.play().catch(err => console.log('Audio play failed:', err));
-      }
+      // Play theme music when showing scoreboard - DISABLED
+      // if (!themeAudio) {
+      //   const audio = new Audio('/sounds/bni-game-theme.mp3');
+      //   audio.volume = 0.3;
+      //   audio.loop = true;
+      //   audio.play().catch(err => console.log('Audio play failed:', err));
+      //   setThemeAudio(audio);
+      // } else {
+      //   themeAudio.play().catch(err => console.log('Audio play failed:', err));
+      // }
     }
   }, [displayData]);
 
@@ -649,10 +649,10 @@ function DisplayPageContent() {
               if (celebrationAudioRef.current) {
                 celebrationAudioRef.current.pause();
               }
-              const audio = new Audio('/sounds/celebrate-winner.mp3');
-              audio.volume = 0.6;
-              audio.play().catch(err => console.log('Audio play failed:', err));
-              celebrationAudioRef.current = audio;
+              // const audio = new Audio('/sounds/celebrate-winner.mp3'); // DISABLED
+              // audio.volume = 0.6;
+              // audio.play().catch(err => console.log('Audio play failed:', err));
+              // celebrationAudioRef.current = audio;
             }}
             className="w-1/2 flex flex-col items-center justify-center p-8 z-10"
           >
