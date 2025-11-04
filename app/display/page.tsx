@@ -955,11 +955,11 @@ function DisplayPageContent() {
               <span>Season</span>
             </button>
             <button
-              onClick={() => router.push('/display/stats')}
+              onClick={() => router.push('/display/chart')}
               className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-sm flex items-center gap-1"
             >
               <Trophy size={16} />
-              <span>Stats</span>
+              <span>Chart</span>
             </button>
           </div>
         </div>
