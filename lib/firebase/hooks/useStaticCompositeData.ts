@@ -175,13 +175,29 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
 
       console.log(`[useStaticTeamStandings] Team ${team.name}: weeklyPoints = ${weeklyPoints}`);
 
-      // Calculate bonuses based on ALL team members who scored in this session
-      // (using historical team assignment from scores)
-      const allTeamMembers = users.filter(
-        (u) => (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') &&
-               u.isActive &&
-               teamScores.some((score) => score.userId === u.id)
-      );
+      // Determine ALL team members who SHOULD be on this team
+      // For both open AND closed sessions, we need to count ALL current team members
+      // If someone is on the team but didn't submit a score, they fail all categories
+      const teamMemberIds = new Set<string>();
+
+      // Add users who have scores for this team (historical members)
+      teamScores.forEach(score => {
+        teamMemberIds.add(score.userId);
+      });
+
+      console.log(`[TeamBonus] ${team.name}: ${teamScores.length} scores found`);
+
+      // ALWAYS include current team members (for both open and closed sessions)
+      // This ensures we don't award bonuses if team members didn't submit scores
+      users.forEach(u => {
+        if (u.teamId === team.id && u.isActive &&
+            (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')) {
+          teamMemberIds.add(u.id!);
+        }
+      });
+
+      const allTeamMembers = users.filter(u => teamMemberIds.has(u.id!));
+      console.log(`[TeamBonus] ${team.name}: Total members = ${allTeamMembers.length}, Session status = ${session?.status}`);
 
       let bonusPoints = 0;
       const bonusCategories: string[] = [];
@@ -189,17 +205,23 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
       // Check if bonuses have been revealed by referee OR if session is closed
       const teamBonusRevealed = team.id && (revealedBonusTeamIds.has(team.id) || session?.status === 'closed');
 
-      // Calculate bonuses based on ALL team members (not just revealed ones)
-      // But only show them if referee has revealed them OR session is finalized
+      // Calculate bonuses based on ALL team members (not just those who submitted scores)
+      // If a team member didn't submit a score, they didn't complete any categories
+      // Only award "All In" bonuses if ALL team members have scores AND completed the category
       if (settings && allTeamMembers.length > 0 && teamBonusRevealed) {
         const categories = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
 
         categories.forEach((category) => {
-          // Check if all team members have points in this category
-          const allMembersHaveCategory = allTeamMembers.every((member) => {
+          // Check if ALL team members (including those without scores) have points in this category
+          // If someone doesn't have a score, they automatically fail all categories
+          const membersWithCategory = allTeamMembers.filter((member) => {
             const score = teamScores.find((s) => s.userId === member.id);
             return score && score.metrics[category] > 0;
           });
+
+          const allMembersHaveCategory = membersWithCategory.length === allTeamMembers.length;
+
+          console.log(`[TeamBonus] ${team.name} - ${category}: ${membersWithCategory.length}/${allTeamMembers.length} members have it. Awarded: ${allMembersHaveCategory}`);
 
           if (allMembersHaveCategory && settings.bonusValues) {
             bonusPoints += settings.bonusValues[category];

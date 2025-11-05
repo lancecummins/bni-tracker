@@ -49,7 +49,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    currentDisplayData = data;
+
+    // Don't persist navigation-type messages (they should only affect currently connected displays)
+    // These include SHOW_SEASON_STANDINGS and CLEAR_DISPLAY
+    if (data.type !== 'SHOW_SEASON_STANDINGS' && data.type !== 'CLEAR_DISPLAY') {
+      currentDisplayData = data;
+    } else if (data.type === 'CLEAR_DISPLAY') {
+      // Clear the persisted data when explicitly asked
+      currentDisplayData = null;
+    }
 
     // Broadcast to all connected clients
     const encoder = new TextEncoder();
