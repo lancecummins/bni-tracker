@@ -155,6 +155,7 @@ function DisplayPageContent() {
     window.history.pushState({}, '', url);
   };
 
+
   const [showConfetti, setShowConfetti] = useState(false);
   const [recentlyUpdated, setRecentlyUpdated] = useState<Set<string>>(new Set());
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
@@ -955,7 +956,10 @@ function DisplayPageContent() {
               <span>Season</span>
             </button>
             <button
-              onClick={() => router.push('/display/chart')}
+              onClick={() => {
+                const url = `/display/chart${displaySessionId ? `?sessionId=${displaySessionId}` : ''}`;
+                router.push(url);
+              }}
               className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-sm flex items-center gap-1"
             >
               <Trophy size={16} />

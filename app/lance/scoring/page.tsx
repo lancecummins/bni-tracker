@@ -144,8 +144,22 @@ export default function LanceScoringPage() {
   useEffect(() => {
     const loadScore = async () => {
       if (selectedSession?.id && lanceUser?.id) {
+        console.log('[Lance Scoring] Loading scores for session:', selectedSession.id, selectedSession.name);
+        console.log('[Lance Scoring] Looking for user ID:', lanceUser.id);
+
         const sessionScores = await scoreService.getBySession(selectedSession.id);
+        console.log('[Lance Scoring] Total scores found:', sessionScores.length);
+        console.log('[Lance Scoring] All scores:', sessionScores.map(s => ({
+          userId: s.userId,
+          totalPoints: s.totalPoints
+        })));
+
         const existingScore = sessionScores.find(s => s.userId === lanceUser.id);
+        console.log('[Lance Scoring] Found existing score:', existingScore ? {
+          id: existingScore.id,
+          totalPoints: existingScore.totalPoints,
+          metrics: existingScore.metrics
+        } : 'No score found');
 
         if (existingScore) {
           setScore(existingScore);
@@ -197,7 +211,17 @@ export default function LanceScoringPage() {
         updatedAt: Timestamp.now(),
       };
 
+      console.log('[Lance Scoring] Saving score with data:', {
+        userId: scoreData.userId,
+        sessionId: scoreData.sessionId,
+        teamId: scoreData.teamId,
+        totalPoints: scoreData.totalPoints,
+        sessionName: selectedSession.name
+      });
+
       const scoreId = await scoreService.upsert(scoreData);
+      console.log('[Lance Scoring] Score saved with ID:', scoreId);
+
       setScore({ ...scoreData, id: scoreId });
       setIsSaved(true);
       setSaveMessage({ type: 'success', text: 'Score saved successfully!' });

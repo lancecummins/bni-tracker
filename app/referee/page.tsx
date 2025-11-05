@@ -8,7 +8,7 @@ import { useAllSessions } from '@/lib/firebase/hooks';
 import { useSessionScores } from '@/lib/firebase/hooks/useScores';
 import { useSettings } from '@/lib/firebase/hooks/useSettings';
 import { User, Team, Score, Session, CustomBonus, AwardedCustomBonus, TeamCustomBonus } from '@/lib/types';
-import { doc, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, Timestamp, arrayUnion, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Monitor, Play, Users as UsersIcon, Trophy, Eye, Check, CheckCircle, Gift, BarChart3, Award, X } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
@@ -600,25 +600,25 @@ export default function RefereePage() {
       teamMemberIds.add(score.userId);
     });
 
-    // For open sessions, also include current team members who haven't submitted scores yet
-    if (selectedSession?.status === 'open') {
-      users.forEach(u => {
-        if (
-          u.teamId === teamId &&
-          u.isActive &&
-          (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')
-        ) {
-          teamMemberIds.add(u.id!);
-        }
-      });
-    }
+    // ALWAYS include current team members (for both open and closed sessions)
+    // This ensures we don't award bonuses if team members didn't submit scores
+    users.forEach(u => {
+      if (
+        u.teamId === teamId &&
+        u.isActive &&
+        (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')
+      ) {
+        teamMemberIds.add(u.id!);
+      }
+    });
 
     const teamMemberCount = teamMemberIds.size;
 
     let bonusPoints = 0;
     const categories: string[] = [];
 
-    // "All In" bonuses - only award if ALL team members have scores
+    // "All In" bonuses - only award if ALL team members have scores AND completed the category
+    // If a team member doesn't have a score, they automatically fail all categories
     if (teamScores.length === teamMemberCount && teamMemberCount > 0) {
       const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
 
@@ -659,18 +659,50 @@ export default function RefereePage() {
 
     try {
       if (awardBonusTarget.type === 'individual') {
-        const userScore = scores.find(s => s.userId === awardBonusTarget.user.id);
-        if (userScore) {
-          // Check if this bonus has already been awarded to this user
-          const alreadyAwarded = userScore.customBonuses?.some(b => b.bonusId === selectedBonus.id);
-          if (alreadyAwarded) {
-            toast.error(`${selectedBonus.name} has already been awarded to ${awardBonusTarget.user.firstName}`);
-            setShowAwardBonusModal(false);
-            setAwardBonusTarget(null);
-            setSelectedBonus(null);
-            return;
-          }
+        let userScore = scores.find(s => s.userId === awardBonusTarget.user.id);
 
+        // Check if this bonus has already been awarded to this user
+        const alreadyAwarded = userScore?.customBonuses?.some(b => b.bonusId === selectedBonus.id);
+        if (alreadyAwarded) {
+          toast.error(`${selectedBonus.name} has already been awarded to ${awardBonusTarget.user.firstName}`);
+          setShowAwardBonusModal(false);
+          setAwardBonusTarget(null);
+          setSelectedBonus(null);
+          return;
+        }
+
+        if (!selectedSessionId) {
+          toast.error('No session selected');
+          return;
+        }
+
+        // If no score exists, create one
+        if (!userScore) {
+          const newScore: Omit<Score, 'id'> = {
+            userId: awardBonusTarget.user.id!,
+            sessionId: selectedSessionId,
+            seasonId: selectedSession?.seasonId || '',
+            teamId: awardBonusTarget.user.teamId,
+            metrics: {
+              attendance: 0,
+              one21s: 0,
+              referrals: 0,
+              tyfcb: 0,
+              visitors: 0
+            },
+            totalPoints: selectedBonus.points,
+            isDraft: false,
+            publishedBy: 'referee',
+            publishedAt: Timestamp.now(),
+            customBonuses: [awardedBonus],
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          };
+
+          const docRef = await addDoc(collection(db, 'scores'), newScore);
+          userScore = { ...newScore, id: docRef.id };
+        } else {
+          // Update existing score
           // Preserve historical metrics total by subtracting old bonuses from existing totalPoints
           const oldCustomBonusTotal = (userScore.customBonuses || []).reduce((sum, b) => sum + b.points, 0);
           const metricsTotal = userScore.totalPoints - oldCustomBonusTotal;
@@ -684,27 +716,25 @@ export default function RefereePage() {
             totalPoints: newTotalPoints,
             updatedAt: Timestamp.now(),
           });
-
-          // Clear cache so display shows updated totals immediately
-          clearStaticDataCache();
-
-          // Instantly display the bonus
-          await fetch('/api/display', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'DISPLAY_CUSTOM_BONUS',
-              bonusName: selectedBonus.name,
-              bonusPoints: selectedBonus.points,
-              targetName: `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`,
-              isTeamBonus: false,
-            })
-          });
-
-          toast.success(`Awarded ${selectedBonus.name} (+${selectedBonus.points} pts) to ${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`);
-        } else {
-          toast.error('No score found for this user');
         }
+
+        // Clear cache so display shows updated totals immediately
+        clearStaticDataCache();
+
+        // Instantly display the bonus
+        await fetch('/api/display', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'DISPLAY_CUSTOM_BONUS',
+            bonusName: selectedBonus.name,
+            bonusPoints: selectedBonus.points,
+            targetName: `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`,
+            isTeamBonus: false,
+          })
+        });
+
+        toast.success(`Awarded ${selectedBonus.name} (+${selectedBonus.points} pts) to ${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`);
       } else {
         // Check if this bonus has already been awarded to this team
         const alreadyAwarded = selectedSession.teamCustomBonuses?.some(
@@ -788,8 +818,8 @@ export default function RefereePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sticky Header with Top Controls */}
-      <div className="sticky top-0 z-10 bg-white shadow-md">
+      {/* Header with Top Controls */}
+      <div className="bg-white shadow-md">
         <div className="p-4">
           {/* Title and Status */}
           <div className="flex items-center justify-between mb-3">
@@ -888,125 +918,6 @@ export default function RefereePage() {
             </button>
           </div>
 
-          {/* Team Standings Summary */}
-          {selectedSessionId && teams.length > 0 && (
-            <div className="mb-3 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-3 border-2 border-blue-200">
-              <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1">
-                <Trophy size={16} className="text-yellow-600" />
-                Team Standings
-              </h3>
-              <div className="grid grid-cols-4 gap-2">
-                {teams
-                  .map(team => {
-                    // Get scores for this team based on historical teamId in scores (not current user.teamId)
-                    const teamScores = scores.filter(s => s.teamId === team.id);
-
-                    // Get users who have scores for this team
-                    const teamMembers = users.filter(u =>
-                      (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') &&
-                      teamScores.some(s => s.userId === u.id)
-                    );
-
-                    const memberPoints = teamScores.reduce((sum, score) => sum + (score.totalPoints || 0), 0);
-                    const bonuses = getTeamBonuses(team.id!);
-                    const totalPoints = memberPoints + bonuses.total;
-
-                    return {
-                      team,
-                      memberPoints,
-                      bonusPoints: bonuses.total,
-                      totalPoints,
-                      memberCount: teamMembers.length
-                    };
-                  })
-                  .sort((a, b) => b.totalPoints - a.totalPoints)
-                  .map((standing, index) => {
-                    const isBonusRevealed = revealedBonusTeamIds.has(standing.team.id!) || selectedSession?.status === 'closed';
-                    return (
-                    <div
-                      key={standing.team.id}
-                      className={`flex flex-col p-2 rounded-lg relative ${
-                        index === 0 ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-white border border-gray-200'
-                      }`}
-                    >
-                      {standing.bonusPoints > 0 && !isBonusRevealed && selectedSession?.status !== 'closed' && (
-                        <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                          HIDDEN
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1 mb-1">
-                        <span className={`text-sm font-bold ${index === 0 ? 'text-yellow-600' : 'text-gray-500'}`}>
-                          #{index + 1}
-                        </span>
-                        <div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: standing.team.color || '#3B82F6' }}
-                        />
-                        <span className="font-semibold text-gray-800 text-xs truncate">
-                          {standing.team.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">Members:</span>
-                        <span className="font-semibold text-gray-700">{standing.memberPoints}</span>
-                      </div>
-                      {standing.bonusPoints > 0 && (
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">Bonus:</span>
-                          <span className={`font-semibold ${isBonusRevealed ? 'text-green-600' : 'text-orange-500'}`}>
-                            +{standing.bonusPoints} {!isBonusRevealed && '👁️'}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between text-xs mt-1 pt-1 border-t border-gray-300">
-                        <span className="text-gray-600 font-medium">Total:</span>
-                        <span className={`font-bold ${index === 0 ? 'text-yellow-600' : 'text-gray-900'}`}>
-                          {standing.totalPoints}
-                        </span>
-                      </div>
-                      {standing.bonusPoints > 0 && (
-                        <button
-                          onClick={() => handleDisplayTeamBonus(standing.team.id!)}
-                          className={`mt-2 w-full px-2 py-1 text-xs font-medium rounded transition-colors ${
-                            isBonusRevealed
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                              : 'bg-orange-500 text-white hover:bg-orange-600'
-                          }`}
-                        >
-                          {isBonusRevealed ? '✓ Shown' : 'Display Bonus'}
-                        </button>
-                      )}
-                    </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-
-          {/* Filter and Sort Controls */}
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <select
-              value={filterMode}
-              onChange={(e) => setFilterMode(e.target.value as any)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-            >
-              <option value="all">All Members</option>
-              <option value="not-shown">Not Shown</option>
-              <option value="shown">Already Shown</option>
-              <option value="no-score">No Score</option>
-            </select>
-            <select
-              value={sortMode}
-              onChange={(e) => setSortMode(e.target.value as any)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-            >
-              <option value="team">Sort by Team</option>
-              <option value="name">Sort by Name</option>
-              <option value="points">Sort by Points</option>
-              <option value="random">Sort by Random</option>
-            </select>
-          </div>
-
           {/* Search and Reset */}
           <div className="flex gap-2">
             <input
@@ -1034,9 +945,8 @@ export default function RefereePage() {
 
       {/* Member List */}
       <div className="p-4 max-w-4xl mx-auto pb-32">
-        {sortMode === 'team' ? (
-          // Group by team
-          teams.map(team => {
+        {/* Group by team */}
+        {teams.map(team => {
             // Filter members based on their historical team assignment in this session
             const teamMembers = filteredMembers.filter(m => getUserTeamForSession(m.id!) === team.id);
             if (teamMembers.length === 0) return null;
@@ -1226,106 +1136,7 @@ export default function RefereePage() {
               </div>
             </div>
           );
-        })
-        ) : (
-          // Flat list for other sort modes
-          <div className="space-y-2">
-            {filteredMembers.map((member, index) => {
-              const scoreStatus = getScoreStatus(member.id!);
-              const totalPoints = getUserScore(member.id!);
-              const isShown = member.id && shownUserIds.has(member.id);
-              // Use historical team from score if available
-              const memberTeamId = getUserTeamForSession(member.id!);
-              const memberTeam = teams.find(t => t.id === memberTeamId);
-
-              return (
-                <div
-                  key={member.id}
-                  className={`bg-white rounded-lg border-2 p-3 ${
-                    isShown ? 'border-green-400 bg-green-50' : 'border-gray-200'
-                  }`}
-                >
-                  {/* User Info Row */}
-                  <div className="flex items-center gap-3 mb-3">
-                    {isShown ? (
-                      <CheckCircle className="text-green-600 flex-shrink-0" size={20} />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
-                    )}
-
-                    <Avatar
-                      src={member.avatarUrl}
-                      fallbackSeed={`${member.firstName}${member.lastName}`}
-                      size="sm"
-                    />
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm truncate">
-                          {member.firstName} {member.lastName}
-                        </p>
-                        {isShown && (
-                          <span className="text-xs text-green-600 font-medium flex-shrink-0">SHOWN</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        {memberTeam && (
-                          <span
-                            className="px-1.5 py-0.5 rounded font-medium"
-                            style={{ backgroundColor: memberTeam.color + '20', color: memberTeam.color }}
-                          >
-                            {memberTeam.name}
-                          </span>
-                        )}
-                        <span className={`px-1.5 py-0.5 rounded ${
-                          scoreStatus === 'published' ? 'bg-green-100 text-green-700' :
-                          scoreStatus === 'draft' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {scoreStatus === 'published' ? 'Ready' :
-                           scoreStatus === 'draft' ? 'Draft' :
-                           'No Score'}
-                        </span>
-                        {scoreStatus !== 'missing' && (
-                          <span className="text-gray-600 font-semibold">{totalPoints} pts</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons Row */}
-                  <div className="grid grid-cols-3 gap-1">
-                    <button
-                      onClick={() => handleDisplayUser(member, index)}
-                      className="flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
-                    >
-                      <Eye size={14} />
-                      Show User
-                    </button>
-                    <button
-                      onClick={() => handleDisplayStats(member, index)}
-                      disabled={scoreStatus === 'missing'}
-                      className="flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs"
-                    >
-                      <Play size={14} />
-                      Display Stats
-                    </button>
-                    <button
-                      onClick={() => {
-                        setAwardBonusTarget({ type: 'individual', user: member, team: memberTeam });
-                        setShowAwardBonusModal(true);
-                      }}
-                      className="flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs"
-                    >
-                      <Award size={14} />
-                      Bonus
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        })}
 
         {filteredMembers.length === 0 && (
           <div className="text-center py-8 text-gray-500">
@@ -1487,14 +1298,21 @@ export default function RefereePage() {
                 onClick={async () => {
                   if (selectedLanceBonus) {
                     // Award Lance's bonus
-                    const userScore = scores.find(s => s.userId === selectedLanceBonus.userId);
-                    if (!userScore) {
-                      toast.error(`No score found for this user`);
-                      return;
-                    }
+                    let userScore = scores.find(s => s.userId === selectedLanceBonus.userId);
 
                     if (!settings) {
                       toast.error('Settings not loaded');
+                      return;
+                    }
+
+                    if (!selectedSessionId) {
+                      toast.error('No session selected');
+                      return;
+                    }
+
+                    const user = users.find(u => u.id === selectedLanceBonus.userId);
+                    if (!user) {
+                      toast.error('User not found');
                       return;
                     }
 
@@ -1509,19 +1327,47 @@ export default function RefereePage() {
                         awardedAt: Timestamp.now(),
                       };
 
-                      // Preserve historical metrics total by subtracting old bonuses from existing totalPoints
-                      const oldCustomBonusTotal = (userScore.customBonuses || []).reduce((sum, b) => sum + b.points, 0);
-                      const metricsTotal = userScore.totalPoints - oldCustomBonusTotal;
+                      // If no score exists, create one
+                      if (!userScore) {
+                        const newScore: Omit<Score, 'id'> = {
+                          userId: user.id!,
+                          sessionId: selectedSessionId,
+                          seasonId: selectedSession?.seasonId || '',
+                          teamId: user.teamId,
+                          metrics: {
+                            attendance: 0,
+                            one21s: 0,
+                            referrals: 0,
+                            tyfcb: 0,
+                            visitors: 0
+                          },
+                          totalPoints: selectedLanceBonus.points,
+                          isDraft: false,
+                          publishedBy: 'lance@nectafy.com',
+                          publishedAt: Timestamp.now(),
+                          customBonuses: [awardedBonus],
+                          createdAt: Timestamp.now(),
+                          updatedAt: Timestamp.now(),
+                        };
 
-                      const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
-                      const newCustomBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
-                      const newTotalPoints = metricsTotal + newCustomBonusTotal;
+                        const docRef = await addDoc(collection(db, 'scores'), newScore);
+                        userScore = { ...newScore, id: docRef.id };
+                      } else {
+                        // Update existing score
+                        // Preserve historical metrics total by subtracting old bonuses from existing totalPoints
+                        const oldCustomBonusTotal = (userScore.customBonuses || []).reduce((sum, b) => sum + b.points, 0);
+                        const metricsTotal = userScore.totalPoints - oldCustomBonusTotal;
 
-                      await updateDoc(doc(db, 'scores', userScore.id!), {
-                        customBonuses: updatedCustomBonuses,
-                        totalPoints: newTotalPoints,
-                        updatedAt: Timestamp.now(),
-                      });
+                        const updatedCustomBonuses = [...(userScore.customBonuses || []), awardedBonus];
+                        const newCustomBonusTotal = updatedCustomBonuses.reduce((sum, b) => sum + b.points, 0);
+                        const newTotalPoints = metricsTotal + newCustomBonusTotal;
+
+                        await updateDoc(doc(db, 'scores', userScore.id!), {
+                          customBonuses: updatedCustomBonuses,
+                          totalPoints: newTotalPoints,
+                          updatedAt: Timestamp.now(),
+                        });
+                      }
 
                       await fetch('/api/display', {
                         method: 'POST',

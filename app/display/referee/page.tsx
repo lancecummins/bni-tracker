@@ -59,61 +59,16 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
         currentAudio.currentTime = 0;
       }
 
-      // const showUserAudio = new Audio('/sounds/show-user.mp3'); // DISABLED
-      // showUserAudio.volume = 0.5;
-      // showUserAudio.play().catch(err => console.log('Audio play failed:', err));
-      // setCurrentAudio(showUserAudio);
-
-      // Start animation sequence
+      // Show everything immediately - no animation delays
       setAnimatingStats(true);
       setRevealedStats({
-        attendance: false,
-        one21s: false,
-        referrals: false,
-        tyfcb: false,
-        visitors: false,
-        total: false
+        attendance: true,
+        one21s: true,
+        referrals: true,
+        tyfcb: true,
+        visitors: true,
+        total: true
       });
-
-      const metrics = displayData.score?.metrics || {
-        attendance: 0,
-        one21s: 0,
-        referrals: 0,
-        tyfcb: 0,
-        visitors: 0
-      };
-
-      const categories = [
-        { key: 'attendance', hasData: (metrics.attendance || 0) > 0 },
-        { key: 'one21s', hasData: (metrics.one21s || 0) > 0 },
-        { key: 'referrals', hasData: (metrics.referrals || 0) > 0 },
-        { key: 'tyfcb', hasData: (metrics.tyfcb || 0) > 0 },
-        { key: 'visitors', hasData: (metrics.visitors || 0) > 0 }
-      ];
-
-      const categoriesWithData = categories.filter(cat => cat.hasData);
-
-      let currentDelay = 2000;
-      categoriesWithData.forEach((category, index) => {
-        const timeoutId = setTimeout(() => {
-          setRevealedStats(prev => ({ ...prev, [category.key]: true }));
-
-          // const audio = new Audio('/sounds/stat-reveal.mp3'); // DISABLED
-          // audio.volume = 0.5;
-          // audio.play().catch(err => console.log('Audio play failed:', err));
-        }, currentDelay);
-        timeoutIdsRef.current.push(timeoutId);
-        currentDelay += 2000;
-      });
-
-      const finalTimeoutId = setTimeout(() => {
-        setRevealedStats(prev => ({ ...prev, total: true }));
-
-        // const audio = new Audio('/sounds/total-reveal.mp3'); // DISABLED
-        // audio.volume = 0.6;
-        // audio.play().catch(err => console.log('Audio play failed:', err));
-      }, currentDelay);
-      timeoutIdsRef.current.push(finalTimeoutId);
     }
 
     return () => {
@@ -192,32 +147,6 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
             </motion.div>
           </div>
         </motion.div>
-
-        {/* On-Deck Indicator */}
-        {displayData?.nextUser && (
-          <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-2xl border-4 border-blue-500 p-4 max-w-xs z-[9999]">
-            <div className="text-xs font-bold text-blue-600 mb-2 text-center uppercase tracking-wide">On Deck</div>
-            <div className="flex items-center gap-3">
-              <Avatar src={displayData.nextUser.avatarUrl} size="md" />
-              <div>
-                <p className="font-bold text-gray-900 text-lg">
-                  {displayData.nextUser.firstName} {displayData.nextUser.lastName}
-                </p>
-                {displayData.nextUserTeam && (
-                  <p
-                    className="text-sm font-semibold px-2 py-0.5 rounded inline-block"
-                    style={{
-                      backgroundColor: displayData.nextUserTeam.color + '20',
-                      color: displayData.nextUserTeam.color
-                    }}
-                  >
-                    {displayData.nextUserTeam.name}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -428,7 +357,6 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1 }}
               className="text-center"
             >
               <div className="text-xl text-white/80 mb-4">Bonus Awards</div>
@@ -438,7 +366,7 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
                     key={index}
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
-                    transition={{ delay: 1.2 + index * 0.1, type: "spring" }}
+                    transition={{ type: "spring" }}
                     className="bg-white/20 backdrop-blur-lg px-5 py-3 rounded-full flex items-center gap-2 border border-white/30"
                   >
                     <Star className="text-yellow-300" size={24} />
@@ -457,7 +385,7 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
                 key="total-score"
                 initial={{ scale: 0, y: 50 }}
                 animate={{ scale: 1, y: 0 }}
-                transition={{ type: "spring", duration: 0.8, delay: totalScoreDelay }}
+                transition={{ type: "spring", duration: 0.8 }}
                 className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-3xl p-8 text-center"
               >
                 <div className="text-2xl text-white/90 mb-2">TOTAL SCORE</div>
@@ -468,32 +396,6 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
             )}
           </AnimatePresence>
         </div>
-
-        {/* On-Deck Indicator */}
-        {displayData?.nextUser && (
-          <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-2xl border-4 border-blue-500 p-4 max-w-xs z-[9999]">
-            <div className="text-xs font-bold text-blue-600 mb-2 text-center uppercase tracking-wide">On Deck</div>
-            <div className="flex items-center gap-3">
-              <Avatar src={displayData.nextUser.avatarUrl} size="md" />
-              <div>
-                <p className="font-bold text-gray-900 text-lg">
-                  {displayData.nextUser.firstName} {displayData.nextUser.lastName}
-                </p>
-                {displayData.nextUserTeam && (
-                  <p
-                    className="text-sm font-semibold px-2 py-0.5 rounded inline-block"
-                    style={{
-                      backgroundColor: displayData.nextUserTeam.color + '20',
-                      color: displayData.nextUserTeam.color
-                    }}
-                  >
-                    {displayData.nextUserTeam.name}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -533,7 +435,13 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
       // Don't add bonuses during progressive reveal - only show individual scores
       // Bonuses should only be calculated when ALL team members are revealed
       // to maintain suspense and fairness
-      const allTeamMembers = displayData.users!.filter(u => u.teamId === team.id);
+
+      // Get ALL current active team members (not just those with scores)
+      const allTeamMembers = displayData.users!.filter(u =>
+        u.teamId === team.id &&
+        u.isActive &&
+        (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')
+      );
       const revealedTeamMembers = allTeamMembers.filter(u => u.id && revealedSet.has(u.id));
 
       // Only add bonuses if ALL team members have been revealed
@@ -544,8 +452,9 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
 
         const categories = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
         categories.forEach(category => {
-          // Check if all team members have points in this category
-          const allHavePoints = revealedTeamMembers.every(member => {
+          // Check if ALL team members (including those without scores) have points in this category
+          // If a member doesn't have a score, they automatically fail this category
+          const allHavePoints = allTeamMembers.every(member => {
             const score = teamScores.find(s => s.userId === member.id);
             return score && (score.metrics[category] || 0) > 0;
           });
