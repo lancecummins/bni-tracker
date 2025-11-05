@@ -682,7 +682,7 @@ export default function RefereePage() {
             userId: awardBonusTarget.user.id!,
             sessionId: selectedSessionId,
             seasonId: selectedSession?.seasonId || '',
-            teamId: awardBonusTarget.user.teamId,
+            teamId: awardBonusTarget.user.teamId || undefined,
             metrics: {
               attendance: 0,
               one21s: 0,
@@ -1333,7 +1333,7 @@ export default function RefereePage() {
                           userId: user.id!,
                           sessionId: selectedSessionId,
                           seasonId: selectedSession?.seasonId || '',
-                          teamId: user.teamId,
+                          teamId: user.teamId || undefined,
                           metrics: {
                             attendance: 0,
                             one21s: 0,

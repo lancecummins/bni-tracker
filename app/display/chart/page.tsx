@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Trophy, ArrowLeft, Crown, TrendingUp, ChevronDown } from 'lucide-react';
@@ -13,7 +13,7 @@ import { LeaderboardEntry } from '@/lib/types';
 type ViewMode = 'session' | 'average' | 'rising';
 type MetricType = 'points' | 'attendance' | 'one21s' | 'referrals' | 'tyfcb' | 'visitors';
 
-export default function DisplayChartPage() {
+function DisplayChartPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionIdParam = searchParams.get('sessionId');
@@ -209,7 +209,7 @@ export default function DisplayChartPage() {
         avgEntries.push({
           userId: user.id!,
           user,
-          teamId: user.teamId,
+          teamId: user.teamId || undefined,
           team: team || undefined,
           weeklyPoints: avgPoints,
           totalPoints: avgPoints,
@@ -664,5 +664,13 @@ export default function DisplayChartPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DisplayChartPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white flex items-center justify-center">Loading...</div>}>
+      <DisplayChartPageContent />
+    </Suspense>
   );
 }
