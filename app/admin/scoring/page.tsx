@@ -108,13 +108,23 @@ export default function AdminScoringPage() {
         visitors: 0,
       };
 
+      // Get existing score to preserve custom bonuses
+      const existingScore = scores.find(s => s.userId === userId && s.sessionId === activeSession.id);
+      const customBonuses = existingScore?.customBonuses || [];
+      const customBonusTotal = customBonuses.reduce((sum, b) => sum + b.points, 0);
+
+      // Calculate total including custom bonuses
+      const metricsTotal = calculateTotal(metrics);
+      const totalPoints = metricsTotal + customBonusTotal;
+
       const score = {
         userId: userId,
         sessionId: activeSession.id!,
         seasonId: activeSession.seasonId,
         teamId: selectedTeam.id!,
         metrics,
-        totalPoints: calculateTotal(metrics),
+        customBonuses, // Preserve custom bonuses
+        totalPoints,
         isDraft: false,
         enteredBy: currentUser.uid,
         createdAt: Timestamp.now(),
@@ -227,13 +237,23 @@ export default function AdminScoringPage() {
           visitors: 0,
         };
 
+        // Get existing score to preserve custom bonuses
+        const existingScore = scores.find(s => s.userId === member.id && s.sessionId === activeSession.id);
+        const customBonuses = existingScore?.customBonuses || [];
+        const customBonusTotal = customBonuses.reduce((sum, b) => sum + b.points, 0);
+
+        // Calculate total including custom bonuses
+        const metricsTotal = calculateTotal(metrics);
+        const totalPoints = metricsTotal + customBonusTotal;
+
         const score = {
           userId: member.id,
           sessionId: activeSession.id!,
           seasonId: activeSession.seasonId,
           teamId: selectedTeam.id!,
           metrics,
-          totalPoints: calculateTotal(metrics),
+          customBonuses, // Preserve custom bonuses
+          totalPoints,
           isDraft: false, // Scores are live immediately
           enteredBy: currentUser.uid,
           createdAt: Timestamp.now(),

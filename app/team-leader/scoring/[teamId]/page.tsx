@@ -144,6 +144,15 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
     setSavingUsers(prev => ({ ...prev, [userId]: true }));
 
     try {
+      // Get existing score to preserve custom bonuses
+      const existingScore = scores.find(s => s.userId === userId && s.sessionId === activeSession.id);
+      const customBonuses = existingScore?.customBonuses || [];
+      const customBonusTotal = customBonuses.reduce((sum, b) => sum + b.points, 0);
+
+      // Calculate total including custom bonuses
+      const metricsTotal = calculateTotal(metrics);
+      const totalPoints = metricsTotal + customBonusTotal;
+
       // Use upsert to create or update score
       await scoreService.upsert({
         userId,
@@ -151,7 +160,8 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
         seasonId: 'season-id', // Should come from active season
         teamId: teamId,
         metrics,
-        totalPoints: calculateTotal(metrics),
+        customBonuses, // Preserve custom bonuses
+        totalPoints,
         isDraft: false,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()

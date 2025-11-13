@@ -151,13 +151,23 @@ export default function SlugScoringPage({ params }: PageProps) {
         visitors: 0,
       };
 
+      // Get existing score to preserve custom bonuses
+      const existingScore = scores.find(s => s.userId === userId && s.sessionId === activeSession.id);
+      const customBonuses = existingScore?.customBonuses || [];
+      const customBonusTotal = customBonuses.reduce((sum, b) => sum + b.points, 0);
+
+      // Calculate total including custom bonuses
+      const metricsTotal = calculateTotal(metrics);
+      const totalPoints = metricsTotal + customBonusTotal;
+
       const score = {
         userId: userId,
         sessionId: activeSession.id!,
         seasonId: activeSession.seasonId,
         teamId: team.id!,
         metrics,
-        totalPoints: calculateTotal(metrics),
+        customBonuses, // Preserve custom bonuses
+        totalPoints,
         isDraft: false,
         enteredBy: 'team-scoring', // Since no authentication, use generic identifier
         createdAt: Timestamp.now(),
