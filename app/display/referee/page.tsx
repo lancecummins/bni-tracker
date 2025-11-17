@@ -17,6 +17,7 @@ interface DisplayData {
   scores?: Score[];
   users?: User[];
   revealedUserIds?: string[];
+  excludedUserIds?: string[]; // Users excluded from "All In" bonuses
   // For bonus display
   teamId?: string;
   teamName?: string;
@@ -442,19 +443,23 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
         u.isActive &&
         (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')
       );
-      const revealedTeamMembers = allTeamMembers.filter(u => u.id && revealedSet.has(u.id));
 
-      // Only add bonuses if ALL team members have been revealed
+      // Filter out excluded users
+      const excludedUserIds = displayData.excludedUserIds || [];
+      const nonExcludedTeamMembers = allTeamMembers.filter(u => u.id && !excludedUserIds.includes(u.id));
+      const revealedNonExcludedMembers = nonExcludedTeamMembers.filter(u => u.id && revealedSet.has(u.id));
+
+      // Only add bonuses if ALL non-excluded team members have been revealed
       let bonusTotal = 0;
       if (displayData.settings?.bonusValues &&
-          revealedTeamMembers.length === allTeamMembers.length &&
-          revealedTeamMembers.length > 0) {
+          revealedNonExcludedMembers.length === nonExcludedTeamMembers.length &&
+          nonExcludedTeamMembers.length > 0) {
 
         const categories = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
         categories.forEach(category => {
-          // Check if ALL team members (including those without scores) have points in this category
-          // If a member doesn't have a score, they automatically fail this category
-          const allHavePoints = allTeamMembers.every(member => {
+          // Check if ALL non-excluded team members have points in this category
+          // Excluded members are not counted
+          const allHavePoints = nonExcludedTeamMembers.every(member => {
             const score = teamScores.find(s => s.userId === member.id);
             return score && (score.metrics[category] || 0) > 0;
           });

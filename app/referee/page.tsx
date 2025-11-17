@@ -10,7 +10,7 @@ import { useSettings } from '@/lib/firebase/hooks/useSettings';
 import { User, Team, Score, Session, CustomBonus, AwardedCustomBonus, TeamCustomBonus } from '@/lib/types';
 import { doc, updateDoc, Timestamp, arrayUnion, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { Monitor, Play, Users as UsersIcon, Trophy, Eye, Check, CheckCircle, Gift, BarChart3, Award, X } from 'lucide-react';
+import { Monitor, Play, Users as UsersIcon, Trophy, Eye, Check, CheckCircle, Gift, BarChart3, Award, X, UserMinus, UserCheck } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -362,6 +362,29 @@ export default function RefereePage() {
     }
   };
 
+  const handleToggleExclusion = async (userId: string) => {
+    if (!selectedSession || !selectedSessionId) return;
+
+    try {
+      const excludedIds = selectedSession.excludedUserIds || [];
+      const isExcluded = excludedIds.includes(userId);
+
+      const newExcludedIds = isExcluded
+        ? excludedIds.filter(id => id !== userId)
+        : [...excludedIds, userId];
+
+      await updateDoc(doc(db, 'sessions', selectedSessionId), {
+        excludedUserIds: newExcludedIds
+      });
+
+      const user = users.find(u => u.id === userId);
+      toast.success(`${user?.firstName} ${isExcluded ? 'included in' : 'excluded from'} bonus calculations`);
+    } catch (error) {
+      console.error('Error toggling exclusion:', error);
+      toast.error('Failed to update exclusion status');
+    }
+  };
+
   const handleDisplayTeam = async () => {
     console.log('handleDisplayTeam called');
     setDisplayMode('team');
@@ -381,7 +404,8 @@ export default function RefereePage() {
           users: users,
           settings: settings,
           revealedUserIds: shownUserIdsList,
-          revealedBonusTeamIds: revealedBonusTeamIdsList
+          revealedBonusTeamIds: revealedBonusTeamIdsList,
+          excludedUserIds: selectedSession?.excludedUserIds || []
         })
       });
 
@@ -589,6 +613,9 @@ export default function RefereePage() {
   const getTeamBonuses = (teamId: string) => {
     if (!settings) return { total: 0, categories: [], customBonuses: [] };
 
+    // Get excluded user IDs for this session
+    const excludedUserIds = selectedSession?.excludedUserIds || [];
+
     // Get scores for this team based on historical teamId in scores (not current user.teamId)
     const teamScores = scores.filter(s => s.teamId === teamId);
 
@@ -612,18 +639,23 @@ export default function RefereePage() {
       }
     });
 
-    const teamMemberCount = teamMemberIds.size;
+    // Filter out excluded users from team member count
+    const nonExcludedMemberIds = Array.from(teamMemberIds).filter(id => !excludedUserIds.includes(id));
+    const teamMemberCount = nonExcludedMemberIds.length;
+
+    // Get scores only for non-excluded members
+    const nonExcludedTeamScores = teamScores.filter(s => !excludedUserIds.includes(s.userId));
 
     let bonusPoints = 0;
     const categories: string[] = [];
 
-    // "All In" bonuses - only award if ALL team members have scores AND completed the category
-    // If a team member doesn't have a score, they automatically fail all categories
-    if (teamScores.length === teamMemberCount && teamMemberCount > 0) {
+    // "All In" bonuses - only award if ALL non-excluded team members have scores AND completed the category
+    // Excluded members are not counted at all
+    if (nonExcludedTeamScores.length === teamMemberCount && teamMemberCount > 0) {
       const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
 
       categoryList.forEach(category => {
-        const allMembersHaveCategory = Array.from(teamMemberIds).every(memberId => {
+        const allMembersHaveCategory = nonExcludedMemberIds.every(memberId => {
           const score = teamScores.find(s => s.userId === memberId);
           return score && score.metrics[category] > 0;
         });
@@ -1087,7 +1119,7 @@ export default function RefereePage() {
                       </div>
 
                       {/* Action Buttons Row */}
-                      <div className="grid grid-cols-3 gap-1">
+                      <div className="grid grid-cols-4 gap-1">
                         <button
                           onClick={() => handleDisplayUser(member, teamMembers.indexOf(member))}
                           className="flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
@@ -1101,7 +1133,7 @@ export default function RefereePage() {
                           className="flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs"
                         >
                           <Play size={14} />
-                          Display Stats
+                          Stats
                         </button>
                         <button
                           onClick={() => {
@@ -1112,6 +1144,27 @@ export default function RefereePage() {
                         >
                           <Award size={14} />
                           Bonus
+                        </button>
+                        <button
+                          onClick={() => member.id && handleToggleExclusion(member.id)}
+                          className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs ${
+                            member.id && selectedSession?.excludedUserIds?.includes(member.id)
+                              ? 'bg-orange-600 text-white hover:bg-orange-700'
+                              : 'bg-gray-600 text-white hover:bg-gray-700'
+                          }`}
+                          title={member.id && selectedSession?.excludedUserIds?.includes(member.id) ? "Include in bonuses" : "Exclude from bonuses"}
+                        >
+                          {member.id && selectedSession?.excludedUserIds?.includes(member.id) ? (
+                            <>
+                              <UserCheck size={14} />
+                              Include
+                            </>
+                          ) : (
+                            <>
+                              <UserMinus size={14} />
+                              Exclude
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>

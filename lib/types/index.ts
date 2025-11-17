@@ -81,6 +81,7 @@ export interface Session {
   closedAt?: Timestamp | null;
   isArchived?: boolean;
   teamCustomBonuses?: TeamCustomBonus[];
+  excludedUserIds?: string[]; // Users excluded from "All In" bonus calculations for this session
 }
 
 export interface ScoreMetrics {
