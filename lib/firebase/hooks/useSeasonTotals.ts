@@ -127,14 +127,19 @@ export function useSeasonTotals(seasonId: string | null) {
       let bonusPoints = 0;
 
       const teamMembers = users.filter(u => u.teamId === teamId && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
+
+      // Filter out excluded users from bonus calculations
+      const excludedUserIds = session.excludedUserIds || [];
+      const nonExcludedMembers = teamMembers.filter(m => !excludedUserIds.includes(m.id!));
+
       const teamScores = sessionScores.filter(s => teamMembers.some(m => m.id === s.userId));
 
-      // "All In" bonuses - only if all team members have scores
-      if (teamScores.length === teamMembers.length && teamMembers.length > 0) {
+      // "All In" bonuses - only if all non-excluded team members have scores
+      if (teamScores.length === nonExcludedMembers.length && nonExcludedMembers.length > 0) {
         const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
 
         categoryList.forEach(category => {
-          const allMembersHaveCategory = teamMembers.every(member => {
+          const allMembersHaveCategory = nonExcludedMembers.every(member => {
             const score = sessionScores.find(s => s.userId === member.id);
             return score && score.metrics[category] > 0;
           });

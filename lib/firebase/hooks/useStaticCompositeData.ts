@@ -197,7 +197,12 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
       });
 
       const allTeamMembers = users.filter(u => teamMemberIds.has(u.id!));
-      console.log(`[TeamBonus] ${team.name}: Total members = ${allTeamMembers.length}, Session status = ${session?.status}`);
+
+      // Filter out excluded users from bonus calculations
+      const excludedUserIds = session?.excludedUserIds || [];
+      const nonExcludedTeamMembers = allTeamMembers.filter(member => !excludedUserIds.includes(member.id!));
+
+      console.log(`[TeamBonus] ${team.name}: Total members = ${allTeamMembers.length}, Excluded = ${excludedUserIds.length}, Active for bonuses = ${nonExcludedTeamMembers.length}, Session status = ${session?.status}`);
 
       let bonusPoints = 0;
       const bonusCategories: string[] = [];
@@ -205,23 +210,23 @@ export function useStaticTeamStandings(sessionId: string | null, usePublished: b
       // Check if bonuses have been revealed by referee OR if session is closed
       const teamBonusRevealed = team.id && (revealedBonusTeamIds.has(team.id) || session?.status === 'closed');
 
-      // Calculate bonuses based on ALL team members (not just those who submitted scores)
-      // If a team member didn't submit a score, they didn't complete any categories
-      // Only award "All In" bonuses if ALL team members have scores AND completed the category
-      if (settings && allTeamMembers.length > 0 && teamBonusRevealed) {
+      // Calculate bonuses based on non-excluded team members only
+      // Excluded members are not counted at all
+      // Only award "All In" bonuses if ALL non-excluded team members have scores AND completed the category
+      if (settings && nonExcludedTeamMembers.length > 0 && teamBonusRevealed) {
         const categories = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
 
         categories.forEach((category) => {
-          // Check if ALL team members (including those without scores) have points in this category
-          // If someone doesn't have a score, they automatically fail all categories
-          const membersWithCategory = allTeamMembers.filter((member) => {
+          // Check if ALL non-excluded team members have points in this category
+          // Excluded members are ignored completely
+          const membersWithCategory = nonExcludedTeamMembers.filter((member) => {
             const score = teamScores.find((s) => s.userId === member.id);
             return score && score.metrics[category] > 0;
           });
 
-          const allMembersHaveCategory = membersWithCategory.length === allTeamMembers.length;
+          const allMembersHaveCategory = membersWithCategory.length === nonExcludedTeamMembers.length;
 
-          console.log(`[TeamBonus] ${team.name} - ${category}: ${membersWithCategory.length}/${allTeamMembers.length} members have it. Awarded: ${allMembersHaveCategory}`);
+          console.log(`[TeamBonus] ${team.name} - ${category}: ${membersWithCategory.length}/${nonExcludedTeamMembers.length} members have it. Awarded: ${allMembersHaveCategory}`);
 
           if (allMembersHaveCategory && settings.bonusValues) {
             bonusPoints += settings.bonusValues[category];

@@ -85,13 +85,18 @@ export default function SeasonStandingsPage() {
               u.isActive &&
               (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')
             );
+
+            // Filter out excluded users from bonus calculations
+            const excludedUserIds = session.excludedUserIds || [];
+            const nonExcludedMembers = teamMembers.filter(m => !excludedUserIds.includes(m.id!));
+
             const teamScores = sessionScores.filter(s => s.teamId === teamId);
 
-            // "All In" bonuses - only if all team members have scores
-            if (teamScores.length === teamMembers.length && teamMembers.length > 0) {
+            // "All In" bonuses - only if all non-excluded team members have scores
+            if (teamScores.length === nonExcludedMembers.length && nonExcludedMembers.length > 0) {
               const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
               categoryList.forEach(category => {
-                const allMembersHaveCategory = teamMembers.every(member => {
+                const allMembersHaveCategory = nonExcludedMembers.every(member => {
                   const score = sessionScores.find(s => s.userId === member.id);
                   return score && score.metrics[category] > 0;
                 });
