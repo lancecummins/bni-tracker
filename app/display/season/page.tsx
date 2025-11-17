@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowLeft } from 'lucide-react';
-import { Team } from '@/lib/types';
-import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
+import { Team, Session, Score, Settings, User } from '@/lib/types';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import Image from 'next/image';
+import { scoreService, sessionService, settingsService, userService } from '@/lib/firebase/services';
 
 interface TeamSeasonStats {
   team: Team;
@@ -21,35 +22,132 @@ export default function SeasonStandingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
+    const loadSeasonStats = async () => {
+      setLoading(true);
+      try {
+        // Get active season
+        const activeSession = await sessionService.getActive();
+        if (!activeSession?.seasonId) {
+          setLoading(false);
+          return;
+        }
 
-    const unsubscribe = onSnapshot(collection(db, 'teams'), (snapshot) => {
-      const teamsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Team));
+        // Get all sessions, settings, teams, and users
+        const [allSessions, settings, allTeams, users] = await Promise.all([
+          sessionService.getBySeason(activeSession.seasonId),
+          settingsService.get(),
+          getDocs(collection(db, 'teams')),
+          userService.getAll()
+        ]);
 
-      const sortedTeams = teamsData
-        .map(team => ({
+        const teamsData = allTeams.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Team));
+
+        // Filter to non-archived closed sessions
+        const closedSessions = allSessions.filter(s => s.status === 'closed' && !s.isArchived);
+
+        // Load scores for all closed sessions
+        const sessionScoresMap = new Map<string, Score[]>();
+        for (const session of closedSessions) {
+          if (session.id) {
+            const scores = await scoreService.getBySession(session.id);
+            sessionScoresMap.set(session.id, scores);
+          }
+        }
+
+        // Calculate weekly winners
+        const weeklyWinsMap = new Map<string, number>();
+        const totalPointsMap = new Map<string, number>();
+
+        closedSessions.forEach(session => {
+          if (!session.id) return;
+
+          const sessionScores = sessionScoresMap.get(session.id) || [];
+          const weeklyTeamPoints = new Map<string, number>();
+
+          // Calculate member points for each team
+          sessionScores.forEach(score => {
+            if (score.teamId) {
+              const current = weeklyTeamPoints.get(score.teamId) || 0;
+              weeklyTeamPoints.set(score.teamId, current + score.totalPoints);
+            }
+          });
+
+          // Add team bonuses
+          weeklyTeamPoints.forEach((memberPoints, teamId) => {
+            let bonusPoints = 0;
+
+            // Get team members and scores
+            const teamMembers = users.filter(u =>
+              u.teamId === teamId &&
+              u.isActive &&
+              (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')
+            );
+            const teamScores = sessionScores.filter(s => s.teamId === teamId);
+
+            // "All In" bonuses - only if all team members have scores
+            if (teamScores.length === teamMembers.length && teamMembers.length > 0) {
+              const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
+              categoryList.forEach(category => {
+                const allMembersHaveCategory = teamMembers.every(member => {
+                  const score = sessionScores.find(s => s.userId === member.id);
+                  return score && score.metrics[category] > 0;
+                });
+                if (allMembersHaveCategory && settings?.bonusValues) {
+                  bonusPoints += settings.bonusValues[category];
+                }
+              });
+            }
+
+            // Custom team bonuses
+            const customBonuses = session.teamCustomBonuses?.filter(b => b.teamId === teamId) || [];
+            bonusPoints += customBonuses.reduce((sum, b) => sum + b.points, 0);
+
+            const totalPoints = memberPoints + bonusPoints;
+            weeklyTeamPoints.set(teamId, totalPoints);
+
+            // Add to season totals
+            totalPointsMap.set(teamId, (totalPointsMap.get(teamId) || 0) + totalPoints);
+          });
+
+          // Find weekly winner
+          let maxPoints = 0;
+          let winningTeamId = '';
+          weeklyTeamPoints.forEach((points, teamId) => {
+            if (points > maxPoints) {
+              maxPoints = points;
+              winningTeamId = teamId;
+            }
+          });
+
+          if (winningTeamId) {
+            weeklyWinsMap.set(winningTeamId, (weeklyWinsMap.get(winningTeamId) || 0) + 1);
+          }
+        });
+
+        // Build team stats
+        const teamStats: TeamSeasonStats[] = teamsData.map(team => ({
           team,
-          weeklyWins: team.weeklyWins || 0,
-          totalPoints: team.totalPoints || 0
-        }))
-        .sort((a, b) => {
+          weeklyWins: weeklyWinsMap.get(team.id!) || 0,
+          totalPoints: totalPointsMap.get(team.id!) || 0
+        })).sort((a, b) => {
           if (b.weeklyWins !== a.weeklyWins) {
             return b.weeklyWins - a.weeklyWins;
           }
           return b.totalPoints - a.totalPoints;
         });
 
-      setTeams(sortedTeams);
-      setLoading(false);
-    }, (error) => {
-      console.error('Error loading team stats:', error);
-      setLoading(false);
-    });
+        setTeams(teamStats);
+      } catch (error) {
+        console.error('Error loading season stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    loadSeasonStats();
   }, []);
 
   if (loading) {
