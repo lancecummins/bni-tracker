@@ -126,13 +126,30 @@ export function useSeasonTotals(seasonId: string | null) {
     const calculateTeamBonuses = (teamId: string, sessionScores: Score[], session: Session) => {
       let bonusPoints = 0;
 
-      const teamMembers = users.filter(u => u.teamId === teamId && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
+      // Determine ALL team members who SHOULD be on this team
+      // Use both historical (from scores) and current team assignments
+      const teamMemberIds = new Set<string>();
+
+      // Add users who have scores for this team (historical members)
+      const teamScores = sessionScores.filter(s => s.teamId === teamId);
+      teamScores.forEach(score => {
+        teamMemberIds.add(score.userId);
+      });
+
+      // ALWAYS include current team members
+      // This ensures we don't award bonuses if team members didn't submit scores
+      users.forEach(u => {
+        if (u.teamId === teamId && u.isActive &&
+            (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')) {
+          teamMemberIds.add(u.id!);
+        }
+      });
+
+      const allTeamMembers = users.filter(u => teamMemberIds.has(u.id!));
 
       // Filter out excluded users from bonus calculations
       const excludedUserIds = session.excludedUserIds || [];
-      const nonExcludedMembers = teamMembers.filter(m => !excludedUserIds.includes(m.id!));
-
-      const teamScores = sessionScores.filter(s => teamMembers.some(m => m.id === s.userId));
+      const nonExcludedMembers = allTeamMembers.filter(m => !excludedUserIds.includes(m.id!));
 
       // "All In" bonuses - only if all non-excluded team members have scores
       if (teamScores.length === nonExcludedMembers.length && nonExcludedMembers.length > 0) {
@@ -288,13 +305,34 @@ export function useSeasonTotals(seasonId: string | null) {
       // Add team bonuses
       weeklyTeamPoints.forEach((memberPoints, teamId) => {
         let bonusPoints = 0;
-        const teamMembers = users.filter(u => u.teamId === teamId && (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin') && u.isActive);
-        const teamScores = sessionScores.filter(s => teamMembers.some(m => m.id === s.userId));
 
-        if (teamScores.length === teamMembers.length && teamMembers.length > 0) {
+        // Determine ALL team members who SHOULD be on this team
+        const teamMemberIds = new Set<string>();
+
+        // Add users who have scores for this team (historical members)
+        const teamScores = sessionScores.filter(s => s.teamId === teamId);
+        teamScores.forEach(score => {
+          teamMemberIds.add(score.userId);
+        });
+
+        // ALWAYS include current team members
+        users.forEach(u => {
+          if (u.teamId === teamId && u.isActive &&
+              (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')) {
+            teamMemberIds.add(u.id!);
+          }
+        });
+
+        const allTeamMembers = users.filter(u => teamMemberIds.has(u.id!));
+
+        // Filter out excluded users from bonus calculations
+        const excludedUserIds = session.excludedUserIds || [];
+        const nonExcludedMembers = allTeamMembers.filter(m => !excludedUserIds.includes(m.id!));
+
+        if (teamScores.length === nonExcludedMembers.length && nonExcludedMembers.length > 0) {
           const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
           categoryList.forEach(category => {
-            const allMembersHaveCategory = teamMembers.every(member => {
+            const allMembersHaveCategory = nonExcludedMembers.every(member => {
               const score = sessionScores.find(s => s.userId === member.id);
               return score && score.metrics[category] > 0;
             });
