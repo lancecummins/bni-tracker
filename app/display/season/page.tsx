@@ -25,23 +25,21 @@ export default function SeasonStandingsPage() {
     const loadSeasonStats = async () => {
       setLoading(true);
       try {
-        // Get active season
-        const activeSession = await sessionService.getActive();
-        console.log('[Season] Active session:', activeSession);
-        if (!activeSession?.seasonId) {
-          console.log('[Season] No active session or no seasonId, returning early');
-          setLoading(false);
-          return;
-        }
-        console.log('[Season] Active session has seasonId:', activeSession.seasonId);
-
         // Get all sessions, settings, teams, and users
-        const [allSessions, settings, allTeams, users] = await Promise.all([
-          sessionService.getBySeason(activeSession.seasonId),
+        // Note: We don't require an active session to view season standings
+        const [allSessionsSnapshot, settings, allTeams, users] = await Promise.all([
+          getDocs(collection(db, 'sessions')),
           settingsService.get(),
           getDocs(collection(db, 'teams')),
           userService.getAll()
         ]);
+
+        const allSessions = allSessionsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Session));
+
+        console.log('[Season] Loaded all sessions:', allSessions.length);
 
         const teamsData = allTeams.docs.map(doc => ({
           id: doc.id,
