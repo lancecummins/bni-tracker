@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, DragEvent } from 'react';
+import { useState, DragEvent, useEffect } from 'react';
 import { useStaticTeams, useStaticUsers, clearStaticDataCache } from '@/lib/firebase/hooks/useStaticData';
-import { teamService, userService } from '@/lib/firebase/services';
-import { Team, User } from '@/lib/types';
+import { teamService, userService, scoreService, settingsService } from '@/lib/firebase/services';
+import { Team, User, Session, Score, Settings } from '@/lib/types';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 import toast from 'react-hot-toast';
 import {
   Users as UsersIcon,
@@ -20,6 +22,11 @@ import {
 } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 
+interface TeamStats {
+  weeklyWins: number;
+  totalPoints: number;
+}
+
 export default function TeamsPage() {
   const { teams, loading: teamsLoading } = useStaticTeams();
   const { users, loading: usersLoading } = useStaticUsers();
@@ -29,8 +36,147 @@ export default function TeamsPage() {
   const [draggedUser, setDraggedUser] = useState<User | null>(null);
   const [dragOverTeam, setDragOverTeam] = useState<string | null>(null);
   const [editingLogoUrl, setEditingLogoUrl] = useState<string | null>(null);
+  const [teamStats, setTeamStats] = useState<Map<string, TeamStats>>(new Map());
+  const [statsLoading, setStatsLoading] = useState(true);
 
-  const loading = teamsLoading || usersLoading;
+  const loading = teamsLoading || usersLoading || statsLoading;
+
+  // Calculate team stats using the same logic as /display/season
+  useEffect(() => {
+    const calculateTeamStats = async () => {
+      if (teamsLoading || usersLoading) return;
+
+      setStatsLoading(true);
+      try {
+        // Get all sessions, settings
+        const [allSessionsSnapshot, settings] = await Promise.all([
+          getDocs(collection(db, 'sessions')),
+          settingsService.get()
+        ]);
+
+        const allSessions = allSessionsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Session));
+
+        // Filter to non-archived closed sessions (same as season page)
+        const closedSessions = allSessions.filter(s => s.status === 'closed' && !s.isArchived);
+
+        // Load scores for all closed sessions
+        const sessionScoresMap = new Map<string, Score[]>();
+        for (const session of closedSessions) {
+          if (session.id) {
+            const scores = await scoreService.getBySession(session.id);
+            sessionScoresMap.set(session.id, scores);
+          }
+        }
+
+        // Calculate weekly winners and total points (EXACT same logic as season page)
+        const weeklyWinsMap = new Map<string, number>();
+        const totalPointsMap = new Map<string, number>();
+
+        closedSessions.forEach(session => {
+          if (!session.id) return;
+
+          const sessionScores = sessionScoresMap.get(session.id) || [];
+          const weeklyTeamPoints = new Map<string, number>();
+
+          // Calculate member points for each team
+          sessionScores.forEach(score => {
+            if (score.teamId) {
+              const current = weeklyTeamPoints.get(score.teamId) || 0;
+              weeklyTeamPoints.set(score.teamId, current + score.totalPoints);
+            }
+          });
+
+          // Add team bonuses
+          weeklyTeamPoints.forEach((memberPoints, teamId) => {
+            let bonusPoints = 0;
+
+            // Determine ALL team members who SHOULD be on this team
+            const teamMemberIds = new Set<string>();
+
+            // Add users who have scores for this team (historical members)
+            const teamScores = sessionScores.filter(s => s.teamId === teamId);
+            teamScores.forEach(score => {
+              teamMemberIds.add(score.userId);
+            });
+
+            // ALWAYS include current team members
+            users.forEach(u => {
+              if (u.teamId === teamId && u.isActive &&
+                  (u.role === 'member' || u.role === 'team-leader' || u.role === 'admin')) {
+                teamMemberIds.add(u.id!);
+              }
+            });
+
+            const allTeamMembers = users.filter(u => teamMemberIds.has(u.id!));
+
+            // Filter out excluded users from bonus calculations
+            const excludedUserIds = session.excludedUserIds || [];
+            const nonExcludedMembers = allTeamMembers.filter(m => !excludedUserIds.includes(m.id!));
+
+            // "All In" bonuses
+            if (teamScores.length === nonExcludedMembers.length && nonExcludedMembers.length > 0) {
+              const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
+              categoryList.forEach(category => {
+                const allMembersHaveCategory = nonExcludedMembers.every(member => {
+                  const score = sessionScores.find(s => s.userId === member.id);
+                  return score && score.metrics[category] > 0;
+                });
+                if (allMembersHaveCategory && settings?.bonusValues) {
+                  bonusPoints += settings.bonusValues[category];
+                }
+              });
+            }
+
+            // Custom team bonuses
+            const customBonuses = session.teamCustomBonuses?.filter(b => b.teamId === teamId) || [];
+            bonusPoints += customBonuses.reduce((sum, b) => sum + b.points, 0);
+
+            const totalPoints = memberPoints + bonusPoints;
+            weeklyTeamPoints.set(teamId, totalPoints);
+
+            // Add to season totals
+            totalPointsMap.set(teamId, (totalPointsMap.get(teamId) || 0) + totalPoints);
+          });
+
+          // Find weekly winner
+          let maxPoints = 0;
+          let winningTeamId = '';
+          weeklyTeamPoints.forEach((points, teamId) => {
+            if (points > maxPoints) {
+              maxPoints = points;
+              winningTeamId = teamId;
+            }
+          });
+
+          if (winningTeamId) {
+            weeklyWinsMap.set(winningTeamId, (weeklyWinsMap.get(winningTeamId) || 0) + 1);
+          }
+        });
+
+        // Build stats map
+        const statsMap = new Map<string, TeamStats>();
+        teams.forEach(team => {
+          if (team.id) {
+            statsMap.set(team.id, {
+              weeklyWins: weeklyWinsMap.get(team.id) || 0,
+              totalPoints: totalPointsMap.get(team.id) || 0
+            });
+          }
+        });
+
+        setTeamStats(statsMap);
+      } catch (error) {
+        console.error('Error calculating team stats:', error);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    calculateTeamStats();
+  }, [teams, users, teamsLoading, usersLoading]);
 
   // Include all active users who can be part of teams (members, team leaders, and admins)
   const activeMembers = users.filter(u => u.isActive);
@@ -344,7 +490,7 @@ export default function TeamsPage() {
                       <div>
                         <h2 className="text-xl font-bold">{team.name}</h2>
                         <p className="text-white/80 text-sm">
-                          {teamMembers.length} members | {team.totalPoints || 0} points
+                          {teamMembers.length} members | {teamStats.get(team.id!)?.totalPoints || 0} points
                         </p>
                         {team.slug && (
                           <p className="text-white/60 text-xs font-mono">
@@ -477,11 +623,11 @@ export default function TeamsPage() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-gray-500">Weekly Wins</p>
-                    <p className="font-semibold">{team.weeklyWins || 0}</p>
+                    <p className="font-semibold">{teamStats.get(team.id!)?.weeklyWins || 0}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Total Points</p>
-                    <p className="font-semibold">{team.totalPoints || 0}</p>
+                    <p className="font-semibold">{teamStats.get(team.id!)?.totalPoints || 0}</p>
                   </div>
                 </div>
               </div>
