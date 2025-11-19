@@ -156,14 +156,17 @@ export default function SeasonStandingsPage() {
           return b.totalPoints - a.totalPoints;
         });
 
+        console.log('[Season] Team stats calculated:', teamStats);
         setTeams(teamStats);
       } catch (error) {
-        console.error('Error loading season stats:', error);
+        console.error('[Season] Error loading season stats:', error);
       } finally {
+        console.log('[Season] Setting loading to false');
         setLoading(false);
       }
     };
 
+    console.log('[Season] Component mounted, loading stats');
     loadSeasonStats();
   }, []);
 
@@ -210,6 +213,11 @@ export default function SeasonStandingsPage() {
 
       {/* Team Standings */}
       <div className="max-w-5xl mx-auto">
+        {teams.length === 0 ? (
+          <div className="text-center text-white/60 text-xl mt-12">
+            No season data available yet. Complete and close at least one week to see standings.
+          </div>
+        ) : (
         <AnimatePresence mode="wait">
           <div className="space-y-4">
             {teams.map((teamStats, index) => (
@@ -266,6 +274,7 @@ export default function SeasonStandingsPage() {
             ))}
           </div>
         </AnimatePresence>
+        )}
       </div>
     </div>
   );
