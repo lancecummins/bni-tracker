@@ -27,10 +27,13 @@ export default function SeasonStandingsPage() {
       try {
         // Get active season
         const activeSession = await sessionService.getActive();
+        console.log('[Season] Active session:', activeSession);
         if (!activeSession?.seasonId) {
+          console.log('[Season] No active session or no seasonId, returning early');
           setLoading(false);
           return;
         }
+        console.log('[Season] Active session has seasonId:', activeSession.seasonId);
 
         // Get all sessions, settings, teams, and users
         const [allSessions, settings, allTeams, users] = await Promise.all([
@@ -47,6 +50,7 @@ export default function SeasonStandingsPage() {
 
         // Filter to non-archived closed sessions
         const closedSessions = allSessions.filter(s => s.status === 'closed' && !s.isArchived);
+        console.log('[Season] Total sessions:', allSessions.length, 'Closed non-archived:', closedSessions.length);
 
         // Load scores for all closed sessions
         const sessionScoresMap = new Map<string, Score[]>();
