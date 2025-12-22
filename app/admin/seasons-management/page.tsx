@@ -248,37 +248,39 @@ export default function SeasonsManagementPage() {
                     <div className="flex items-center gap-2">
                       <Calendar size={16} className="text-gray-400" />
                       <span className="text-gray-600">
-                        {season.startDate && new Date(season.startDate.seconds * 1000).toLocaleDateString()} - {' '}
-                        {season.endDate && new Date(season.endDate.seconds * 1000).toLocaleDateString()}
+                        {season.startDate ? new Date(season.startDate.seconds * 1000).toLocaleDateString() : 'N/A'} - {' '}
+                        {season.endDate ? new Date(season.endDate.seconds * 1000).toLocaleDateString() : 'N/A'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <TrendingUp size={16} className="text-gray-400" />
-                      <span className="text-gray-600">{season.weekCount} weeks</span>
+                      <span className="text-gray-600">{season.weekCount || 0} weeks</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Users size={16} className="text-gray-400" />
-                      <span className="text-gray-600">Week {season.currentWeek}</span>
+                      <span className="text-gray-600">Week {season.currentWeek || 1} of {season.weekCount || 0}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Award size={16} className="text-gray-400" />
                       <span className="text-gray-600">
-                        Points configured
+                        {season.isActive ? 'Active Season' : 'Inactive'}
                       </span>
                     </div>
                   </div>
 
                   {/* Point Values Preview */}
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-xs font-medium text-gray-700 mb-1">Point Values:</p>
-                    <div className="flex gap-3 text-xs text-gray-600">
-                      <span>Attendance: {season.pointValues.attendance}</span>
-                      <span>1-2-1s: {season.pointValues.one21s}</span>
-                      <span>Referrals: {season.pointValues.referrals}</span>
-                      <span>TYFCB: {season.pointValues.tyfcb}</span>
-                      <span>Visitors: {season.pointValues.visitors}</span>
+                  {season.pointValues && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs font-medium text-gray-700 mb-1">Point Values:</p>
+                      <div className="flex gap-3 text-xs text-gray-600">
+                        <span>Attendance: {season.pointValues?.attendance || 0}</span>
+                        <span>1-2-1s: {season.pointValues?.one21s || 0}</span>
+                        <span>Referrals: {season.pointValues?.referrals || 0}</span>
+                        <span>TYFCB: {season.pointValues?.tyfcb || 0}</span>
+                        <span>Visitors: {season.pointValues?.visitors || 0}</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-2 ml-6">
