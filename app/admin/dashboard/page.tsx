@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   useActiveSession,
+  useActiveSeason,
   useUsers,
   useTeams,
   useSessionScores,
@@ -26,10 +27,11 @@ import {
 
 export default function AdminDashboard() {
   const { session: activeSession, loading: sessionLoading } = useActiveSession();
+  const { season: activeSeason } = useActiveSeason();
   const { users, loading: usersLoading } = useUsers();
   const { teams, loading: teamsLoading } = useTeams();
   const { scores, loading: scoresLoading } = useSessionScores(activeSession?.id || null);
-  const { sessions: allSessions } = useSeasonSessions('season-id'); // Should come from active season
+  const { sessions: allSessions } = useSeasonSessions(activeSeason?.id || 'none');
 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [sessionDate, setSessionDate] = useState('');
@@ -89,9 +91,15 @@ export default function AdminDashboard() {
       // Calculate week number based on existing sessions
       const weekNumber = allSessions.length + 1;
 
+      if (!activeSeason?.id) {
+        toast.error('No active season found. Please create a season first.');
+        setCreatingSession(false);
+        return;
+      }
+
       const newSession: Omit<Session, 'id'> = {
         name: sessionName.trim(),
-        seasonId: 'season-id', // This should come from active season
+        seasonId: activeSeason.id,
         weekNumber: weekNumber,
         date: Timestamp.fromDate(selectedDate),
         status: 'open',

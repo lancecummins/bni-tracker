@@ -2,6 +2,7 @@
 
 import { useState, DragEvent, useEffect } from 'react';
 import { useStaticTeams, useStaticUsers, clearStaticDataCache } from '@/lib/firebase/hooks/useStaticData';
+import { useActiveSeason } from '@/lib/firebase/hooks';
 import { teamService, userService, scoreService, settingsService } from '@/lib/firebase/services';
 import { Team, User, Session, Score, Settings } from '@/lib/types';
 import { collection, getDocs } from 'firebase/firestore';
@@ -18,7 +19,10 @@ import {
   Palette,
   Crown,
   GripVertical,
-  Image as ImageIcon
+  Image as ImageIcon,
+  AlertTriangle,
+  TrendingUp,
+  CheckCircle2
 } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 
@@ -30,6 +34,7 @@ interface TeamStats {
 export default function TeamsPage() {
   const { teams, loading: teamsLoading } = useStaticTeams();
   const { users, loading: usersLoading } = useStaticUsers();
+  const { season: activeSeason } = useActiveSeason();
   const [editingTeam, setEditingTeam] = useState<string | null>(null);
   const [teamEdits, setTeamEdits] = useState<Record<string, Partial<Team>>>({});
   const [showUserAssignment, setShowUserAssignment] = useState<string | null>(null);
@@ -320,6 +325,7 @@ export default function TeamsPage() {
   }
 
   const unassignedUsers = getUnassignedUsers();
+  const isNewSeasonSetup = unassignedUsers.length > activeMembers.length * 0.5; // More than 50% unassigned
 
   return (
     <div className="space-y-6">
@@ -329,6 +335,12 @@ export default function TeamsPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Teams Management</h1>
             <p className="text-gray-600 mt-1">Manage teams and member assignments</p>
+            {activeSeason && (
+              <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                <TrendingUp size={14} />
+                Season: {activeSeason.name}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2 text-gray-600">
@@ -352,6 +364,60 @@ export default function TeamsPage() {
           </div>
         </div>
       </div>
+
+      {/* New Season Setup Banner */}
+      {isNewSeasonSetup && (
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-6 text-white">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-white/20 rounded-lg">
+              <TrendingUp size={32} />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold mb-2">New Season Setup Mode</h2>
+              <p className="text-blue-100 mb-4">
+                You have {unassignedUsers.length} unassigned members ready for the new season draft. Follow these steps:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white/10 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center font-bold">1</div>
+                    <h3 className="font-semibold">Assign Team Leaders</h3>
+                  </div>
+                  <p className="text-sm text-blue-100">
+                    Drag team leaders (blue badges) to their respective teams first
+                  </p>
+                </div>
+                <div className="bg-white/10 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center font-bold">2</div>
+                    <h3 className="font-semibold">Draft Members</h3>
+                  </div>
+                  <p className="text-sm text-blue-100">
+                    Use drag-and-drop to assign members to teams for the new season
+                  </p>
+                </div>
+                <div className="bg-white/10 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center font-bold">3</div>
+                    <h3 className="font-semibold">Start Competing</h3>
+                  </div>
+                  <p className="text-sm text-blue-100">
+                    Once all members are assigned, you're ready to create sessions!
+                  </p>
+                </div>
+              </div>
+              {teamLeaders.filter(tl => !tl.teamId).length > 0 && (
+                <div className="mt-4 p-3 bg-yellow-500/20 border border-yellow-400/30 rounded-lg flex items-center gap-2">
+                  <AlertTriangle size={20} />
+                  <p className="text-sm">
+                    <strong>{teamLeaders.filter(tl => !tl.teamId).length} team leader(s)</strong> still need to be assigned to teams
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Unassigned Users Alert */}
       {unassignedUsers.length > 0 && (

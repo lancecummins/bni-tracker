@@ -176,3 +176,29 @@ export interface Settings {
   createdAt: Timestamp;
   updatedAt?: Timestamp;
 }
+
+export type DraftStatus = 'setup' | 'in_progress' | 'completed';
+
+export interface DraftPick {
+  userId: string;
+  teamId: string;
+  round: number;
+  pickNumber: number;
+  pickedBy: string; // User ID of who made the pick (team leader or admin)
+  timestamp: Timestamp;
+}
+
+export interface Draft {
+  id?: string;
+  seasonId: string;
+  status: DraftStatus;
+  teamLeaders: {
+    teamId: string;
+    userId: string;
+    draftPosition: number; // 1-4, based on previous season standings
+  }[];
+  picks: DraftPick[];
+  currentPickNumber: number; // Overall pick number (0-indexed)
+  createdAt: Timestamp;
+  completedAt?: Timestamp;
+}

@@ -413,8 +413,13 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Season Settings */}
-      <div className="bg-white rounded-lg shadow p-6">
+      {/* Season Settings - HIDDEN (Legacy)
+          This section is commented out because season management is now handled
+          in the dedicated Seasons page (/admin/seasons-management).
+          We keep the state/handlers below in case we need to restore it,
+          and the migration page still uses settings.seasonSettings as a template.
+      */}
+      {/* <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Database className="text-green-600" size={20} />
@@ -483,7 +488,7 @@ export default function SettingsPage() {
             />
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Display Settings */}
       <div className="bg-white rounded-lg shadow p-6">

@@ -1,0 +1,103 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'lance@nectafy.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         getUserData().role == 'admin')
+      );
+    }
+
+    function isTeamLeader() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getUserData().role == 'team-leader';
+    }
+
+    function isActiveUser() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getUserData().isActive == true;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Anyone can read users (needed for draft page)
+      allow read: if true;
+      // Only admins can create, update, or delete users
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Teams collection
+    match /teams/{teamId} {
+      // Anyone can read teams (needed for draft page)
+      allow read: if true;
+      // Only admins can modify teams
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Seasons collection
+    match /seasons/{seasonId} {
+      // Anyone can read seasons (needed for draft page)
+      allow read: if true;
+      // Only admins can modify seasons
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Sessions collection
+    match /sessions/{sessionId} {
+      // Anyone can read sessions (needed for draft page)
+      allow read: if true;
+      // Only admins can create or delete sessions
+      allow create, delete: if isAdmin();
+      // Admins can always update, team leaders can update their own sessions
+      allow update: if isAdmin();
+    }
+
+    // Scores collection
+    match /scores/{scoreId} {
+      // Anyone can read scores (needed for draft page)
+      allow read: if true;
+      // Admins can do anything
+      allow create, update, delete: if isAdmin();
+      // Team leaders can create/update draft scores
+      allow create: if isTeamLeader() && request.resource.data.isDraft == true;
+      allow update: if isTeamLeader() && resource.data.isDraft == true;
+    }
+
+    // Settings collection
+    match /settings/{settingId} {
+      // Anyone can read settings (needed for draft page)
+      allow read: if true;
+      // Only admins can modify settings
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Drafts collection
+    match /drafts/{draftId} {
+      // Anyone can read drafts (security through obscurity with URL)
+      allow read: if true;
+
+      // Only admins can create drafts
+      allow create: if isAdmin();
+
+      // Anyone can update drafts (team leaders use obscure URL)
+      allow update: if true;
+
+      // Only admins can delete drafts (to cancel/reset)
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -20,6 +20,7 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
   const router = useRouter();
   const { teamId } = params;
   const [activeSession, setActiveSession] = useState<any>(null);
+  const [activeSeason, setActiveSeason] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [scores, setScores] = useState<Score[]>([]);
@@ -46,6 +47,17 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
     const loadData = async () => {
       try {
         setLoading(true);
+
+        // Load active season
+        const seasonsQuery = query(
+          collection(db, 'seasons'),
+          where('isActive', '==', true)
+        );
+        const seasonsSnapshot = await getDocs(seasonsQuery);
+        const activeSeasons = seasonsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (activeSeasons.length > 0) {
+          setActiveSeason(activeSeasons[0]);
+        }
 
         // Load active session
         const sessionsQuery = query(
@@ -157,7 +169,7 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
       await scoreService.upsert({
         userId,
         sessionId: activeSession.id,
-        seasonId: 'season-id', // Should come from active season
+        seasonId: activeSeason?.id || '',
         teamId: teamId,
         metrics,
         customBonuses, // Preserve custom bonuses

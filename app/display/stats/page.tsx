@@ -20,6 +20,7 @@ import {
   useUsers,
   useTeams,
   useActiveSession,
+  useActiveSeason,
   useSettings
 } from '@/lib/firebase/hooks';
 import { Avatar } from '@/components/Avatar';
@@ -37,12 +38,13 @@ import {
 export default function SeasonDashboardPage() {
   const router = useRouter();
   const { session: activeSession } = useActiveSession();
+  const { season: activeSeason } = useActiveSeason();
   const { users } = useUsers();
   const { teams } = useTeams();
   const { settings } = useSettings();
-  const { userTotals, teamTotals, loading, weekCount, weeklyData } = useSeasonTotals('season-id');
+  const { userTotals, teamTotals, loading, weekCount, weeklyData } = useSeasonTotals(activeSeason?.id || 'none');
 
-  const totalWeeks = settings?.seasonSettings?.weekCount || 12;
+  const totalWeeks = activeSeason?.weekCount || 12;
   const progressPercentage = (weekCount / totalWeeks) * 100;
 
   if (loading) {

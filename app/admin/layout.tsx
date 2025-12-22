@@ -16,6 +16,8 @@ import {
   Upload,
   Link as LinkIcon,
   Eye,
+  TrendingUp,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '@/lib/firebase/hooks/useAuth';
 import { useUsers } from '@/lib/firebase/hooks/useUsers';
@@ -27,6 +29,9 @@ const navItems = [
   { href: '/admin/sessions', label: 'Sessions', icon: Calendar },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/teams', label: 'Teams', icon: Trophy },
+  { href: '/admin/seasons-management', label: 'Seasons', icon: TrendingUp },
+  { href: '/admin/draft-setup', label: 'Draft', icon: ClipboardList },
+  { href: '/admin/backup', label: 'Backup', icon: Upload },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

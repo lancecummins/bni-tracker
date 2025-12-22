@@ -9,6 +9,8 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import Image from 'next/image';
 import { scoreService, sessionService, settingsService, userService } from '@/lib/firebase/services';
+import { useActiveSeason } from '@/lib/firebase/hooks';
+import { SeasonSelector } from '@/components';
 
 interface TeamSeasonStats {
   team: Team;
@@ -18,11 +20,22 @@ interface TeamSeasonStats {
 
 export default function SeasonStandingsPage() {
   const router = useRouter();
+  const { season: activeSeason } = useActiveSeason();
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
   const [teams, setTeams] = useState<TeamSeasonStats[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Set selected season to active season when it loads
+  useEffect(() => {
+    if (activeSeason && !selectedSeasonId) {
+      setSelectedSeasonId(activeSeason.id!);
+    }
+  }, [activeSeason, selectedSeasonId]);
+
   useEffect(() => {
     const loadSeasonStats = async () => {
+      if (!selectedSeasonId) return;
+
       setLoading(true);
       try {
         // Get all sessions, settings, teams, and users
@@ -46,9 +59,13 @@ export default function SeasonStandingsPage() {
           ...doc.data()
         } as Team));
 
-        // Filter to non-archived closed sessions
-        const closedSessions = allSessions.filter(s => s.status === 'closed' && !s.isArchived);
-        console.log('[Season] Total sessions:', allSessions.length, 'Closed non-archived:', closedSessions.length);
+        // Filter to this season's non-archived closed sessions
+        const closedSessions = allSessions.filter(s =>
+          s.seasonId === selectedSeasonId &&
+          s.status === 'closed' &&
+          !s.isArchived
+        );
+        console.log('[Season] Total sessions:', allSessions.length, 'Closed non-archived for this season:', closedSessions.length);
 
         // Load scores for all closed sessions
         const sessionScoresMap = new Map<string, Score[]>();
@@ -170,7 +187,7 @@ export default function SeasonStandingsPage() {
 
     console.log('[Season] Component mounted, loading stats');
     loadSeasonStats();
-  }, []);
+  }, [selectedSeasonId]);
 
   if (loading) {
     return (
@@ -203,13 +220,21 @@ export default function SeasonStandingsPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => router.push('/display')}
-            className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-          >
-            <ArrowLeft size={20} />
-            Back
-          </button>
+          <div className="flex items-center gap-4">
+            {selectedSeasonId && (
+              <SeasonSelector
+                selectedSeasonId={selectedSeasonId}
+                onSeasonChange={setSelectedSeasonId}
+              />
+            )}
+            <button
+              onClick={() => router.push('/display')}
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <ArrowLeft size={20} />
+              Back
+            </button>
+          </div>
         </div>
       </div>
 

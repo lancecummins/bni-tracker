@@ -2,21 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { sessionService, scoreService } from '@/lib/firebase/services';
-import { Session, Score } from '@/lib/types';
-import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff, Monitor, Edit2, PlayCircle, X } from 'lucide-react';
+import { Session, Score, Season } from '@/lib/types';
+import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff, Monitor, Edit2, PlayCircle, X, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { useActiveSession } from '@/lib/firebase/hooks';
+import { useActiveSession, useActiveSeason, useSeasons } from '@/lib/firebase/hooks';
 
 type SortBy = 'date' | 'week' | 'status' | 'points';
 type SortOrder = 'asc' | 'desc';
 
 export default function SessionsPage() {
   const { session: activeSession } = useActiveSession();
+  const { season: activeSeason } = useActiveSeason();
+  const { seasons } = useSeasons();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionScores, setSessionScores] = useState<Record<string, Score[]>>({});
   const [loading, setLoading] = useState(true);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [expandedSeasons, setExpandedSeasons] = useState<Set<string>>(new Set());
   const [showArchived, setShowArchived] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -26,6 +29,13 @@ export default function SessionsPage() {
   const [sessionDate, setSessionDate] = useState('');
   const [sessionName, setSessionName] = useState('');
   const [creatingSession, setCreatingSession] = useState(false);
+
+  // Auto-expand active season when it loads
+  useEffect(() => {
+    if (activeSeason?.id && !expandedSeasons.has(activeSeason.id)) {
+      setExpandedSeasons(new Set([activeSeason.id]));
+    }
+  }, [activeSeason]);
 
   useEffect(() => {
     loadSessions();
@@ -146,6 +156,11 @@ export default function SessionsPage() {
       return;
     }
 
+    if (!activeSeason?.id) {
+      toast.error('No active season found. Please create a season first.');
+      return;
+    }
+
     try {
       setCreatingSession(true);
 
@@ -156,7 +171,7 @@ export default function SessionsPage() {
 
       const newSession: Omit<Session, 'id'> = {
         name: sessionName.trim(),
-        seasonId: 'season-id', // This should come from active season
+        seasonId: activeSeason.id,
         weekNumber: weekNumber,
         date: Timestamp.fromDate(selectedDate),
         status: 'open',
@@ -250,6 +265,46 @@ export default function SessionsPage() {
     }
   };
 
+  const toggleSeasonExpanded = (seasonId: string) => {
+    const newExpanded = new Set(expandedSeasons);
+    if (newExpanded.has(seasonId)) {
+      newExpanded.delete(seasonId);
+    } else {
+      newExpanded.add(seasonId);
+    }
+    setExpandedSeasons(newExpanded);
+  };
+
+  // Group sessions by season
+  // Map old 'season-id' to the active season if it exists
+  const sessionsBySeason = sessions.reduce((acc, session) => {
+    let seasonId = session.seasonId || 'unknown';
+
+    // Migrate old hardcoded 'season-id' to active season
+    if (seasonId === 'season-id' && activeSeason?.id) {
+      seasonId = activeSeason.id;
+    }
+
+    if (!acc[seasonId]) {
+      acc[seasonId] = [];
+    }
+    acc[seasonId].push(session);
+    return acc;
+  }, {} as Record<string, Session[]>);
+
+  // Sort seasons (active first, then by date)
+  const sortedSeasons = [...seasons].sort((a, b) => {
+    if (a.isActive) return -1;
+    if (b.isActive) return 1;
+    return (b.startDate?.seconds || 0) - (a.startDate?.seconds || 0);
+  });
+
+  // Debug logging
+  console.log('[Sessions] Total sessions:', sessions.length);
+  console.log('[Sessions] Total seasons:', seasons.length);
+  console.log('[Sessions] Sessions by season:', sessionsBySeason);
+  console.log('[Sessions] Sorted seasons:', sortedSeasons);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -339,16 +394,115 @@ export default function SessionsPage() {
         </div>
       </div>
 
-      {/* Sessions List */}
-      <div className="space-y-4">
-        {filteredAndSortedSessions.length === 0 ? (
+      {/* Sessions List - Grouped by Season */}
+      <div className="space-y-6">
+        {sessions.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
-            <p className="text-gray-500">
-              {showArchived ? 'No sessions found' : 'No active sessions found. Click "Show Archived" to see archived sessions.'}
-            </p>
+            <p className="text-gray-500">No sessions found. Create your first session to get started!</p>
+          </div>
+        ) : seasons.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <div className="mb-4">
+              <p className="text-gray-900 font-semibold mb-2">No seasons found</p>
+              <p className="text-gray-500">You need to create a season before sessions can be displayed.</p>
+            </div>
+            <a
+              href="/admin/migrate-season"
+              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Run Migration to Create Initial Season
+            </a>
           </div>
         ) : (
-          filteredAndSortedSessions.map((session) => {
+          sortedSeasons.map((season) => {
+            const seasonSessions = (sessionsBySeason[season.id!] || [])
+              .filter(session => showArchived || !session.isArchived)
+              .sort((a, b) => {
+                let comparison = 0;
+                switch (sortBy) {
+                  case 'date':
+                    comparison = (a.date?.seconds || 0) - (b.date?.seconds || 0);
+                    break;
+                  case 'week':
+                    comparison = a.weekNumber - b.weekNumber;
+                    break;
+                  case 'status':
+                    const statusOrder = { 'open': 0, 'draft': 1, 'closed': 2 };
+                    comparison = statusOrder[a.status] - statusOrder[b.status];
+                    break;
+                  case 'points':
+                    const aStats = getSessionStats(a.id!);
+                    const bStats = getSessionStats(b.id!);
+                    comparison = aStats.totalPoints - bStats.totalPoints;
+                    break;
+                }
+                return sortOrder === 'asc' ? comparison : -comparison;
+              });
+
+            if (seasonSessions.length === 0 && !showArchived) return null;
+
+            const isExpanded = expandedSeasons.has(season.id!);
+            const totalSessions = seasonSessions.length;
+            const closedSessions = seasonSessions.filter(s => s.status === 'closed').length;
+
+            return (
+              <div key={season.id} className="bg-white rounded-lg shadow overflow-hidden">
+                {/* Season Header */}
+                <div
+                  className={`p-4 cursor-pointer transition-colors border-l-4 ${
+                    season.isActive
+                      ? 'bg-gradient-to-r from-green-50 to-blue-50 border-green-500'
+                      : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
+                  }`}
+                  onClick={() => toggleSeasonExpanded(season.id!)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                      <TrendingUp size={20} className={season.isActive ? 'text-green-600' : 'text-gray-400'} />
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                          {season.name}
+                          {season.isActive && (
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                              Active
+                            </span>
+                          )}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {season.startDate && new Date(season.startDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          {' - '}
+                          {season.endDate && new Date(season.endDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="text-center">
+                        <p className="text-gray-500">Sessions</p>
+                        <p className="font-semibold text-gray-900">{totalSessions}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-gray-500">Closed</p>
+                        <p className="font-semibold text-gray-900">{closedSessions}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-gray-500">Weeks</p>
+                        <p className="font-semibold text-gray-900">{season.weekCount}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Season Sessions (nested) */}
+                {isExpanded && (
+                  <div className="border-t">
+                    {seasonSessions.length === 0 ? (
+                      <div className="p-8 text-center text-gray-500">
+                        No sessions in this season yet.
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {seasonSessions.map((session) => {
             const stats = getSessionStats(session.id!);
             const isExpanded = expandedSession === session.id;
             const topPerformers = getTopPerformers(session.id!);
@@ -622,6 +776,13 @@ export default function SessionsPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
