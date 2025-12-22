@@ -188,13 +188,13 @@ export const draftService = {
     const teamLeaderIds = draft.teamLeaders.map(leader => leader.userId);
 
     const availableUsers = usersSnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(user =>
+      .map(doc => ({ id: doc.id, ...doc.data() } as any))
+      .filter((user: any) =>
         user.role !== 'admin' &&
         !teamLeaderIds.includes(user.id!) &&
         !pickedUserIds.includes(user.id!)
       )
-      .map(user => user.id!);
+      .map((user: any) => user.id!);
 
     return availableUsers;
   },

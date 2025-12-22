@@ -52,9 +52,7 @@ export default function DraftSetupPage() {
       setStarting(true);
 
       // Calculate draft order from previous season
-      // First, find the previous season
-      const { seasons } = await import('@/lib/firebase/hooks/useSeasons');
-      // We need to get all seasons and find the one before this one
+      // Get all seasons and find the one before this one
       const allSeasons = await import('@/lib/firebase/services/seasonService').then(m => m.seasonService.getAll());
       const sortedSeasons = allSeasons.sort((a, b) =>
         b.createdAt.toMillis() - a.createdAt.toMillis()
