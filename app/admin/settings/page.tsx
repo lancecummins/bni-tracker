@@ -50,9 +50,24 @@ export default function SettingsPage() {
   // Load settings when they become available
   useEffect(() => {
     if (settings) {
-      setPointValues(settings.pointValues);
+      // Merge with defaults to ensure new fields like CEU are present
+      setPointValues({
+        attendance: settings.pointValues?.attendance ?? 10,
+        one21s: settings.pointValues?.one21s ?? 15,
+        referrals: settings.pointValues?.referrals ?? 25,
+        tyfcb: settings.pointValues?.tyfcb ?? 20,
+        visitors: settings.pointValues?.visitors ?? 15,
+        ceu: settings.pointValues?.ceu ?? 10,
+      });
       if (settings.bonusValues) {
-        setBonusValues(settings.bonusValues);
+        setBonusValues({
+          attendance: settings.bonusValues?.attendance ?? 50,
+          one21s: settings.bonusValues?.one21s ?? 50,
+          referrals: settings.bonusValues?.referrals ?? 100,
+          tyfcb: settings.bonusValues?.tyfcb ?? 75,
+          visitors: settings.bonusValues?.visitors ?? 50,
+          ceu: settings.bonusValues?.ceu ?? 50,
+        });
       }
       setSeasonSettings(settings.seasonSettings);
       setDisplaySettings(settings.displaySettings);
