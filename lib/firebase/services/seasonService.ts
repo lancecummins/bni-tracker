@@ -5,6 +5,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -124,6 +125,12 @@ export const seasonService = {
     batch.update(docRef, { isActive: true });
 
     await batch.commit();
+  },
+
+  // Delete a season
+  async delete(id: string): Promise<void> {
+    const docRef = doc(db, COLLECTION_NAME, id);
+    await deleteDoc(docRef);
   },
 
   // Subscribe to active season

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useSeasons, useActiveSeason } from '@/lib/firebase/hooks';
 import { seasonService } from '@/lib/firebase/services/seasonService';
 import { Season, PointValues, BonusValues } from '@/lib/types';
-import { Calendar, CheckCircle, XCircle, Plus, PlayCircle, StopCircle, Eye, TrendingUp, Users, Award } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, Plus, PlayCircle, StopCircle, Eye, TrendingUp, Users, Award, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
@@ -146,6 +146,27 @@ export default function SeasonsManagementPage() {
     }
   };
 
+  const handleDeleteSeason = async (seasonId: string, seasonName: string) => {
+    const season = seasons.find(s => s.id === seasonId);
+
+    if (season?.isActive) {
+      toast.error('Cannot delete the active season. Please close it first.');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete "${seasonName}"? This action cannot be undone and will permanently remove all associated data.`)) {
+      return;
+    }
+
+    try {
+      await seasonService.delete(seasonId);
+      toast.success('Season deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting season:', error);
+      toast.error('Failed to delete season');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -270,13 +291,22 @@ export default function SeasonsManagementPage() {
                   </button>
 
                   {!season.isActive && (
-                    <button
-                      onClick={() => handleReactivateSeason(season.id!)}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
-                    >
-                      <PlayCircle size={16} />
-                      Reactivate
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleReactivateSeason(season.id!)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                      >
+                        <PlayCircle size={16} />
+                        Reactivate
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSeason(season.id!, season.name)}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                      >
+                        <Trash2 size={16} />
+                        Delete
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
