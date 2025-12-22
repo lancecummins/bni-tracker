@@ -97,6 +97,7 @@ export function useStaticLeaderboard(sessionId: string | null, usePublished: boo
             referrals: 0,
             tyfcb: 0,
             visitors: 0,
+            ceu: 0,
           },
           position: 0,
         };

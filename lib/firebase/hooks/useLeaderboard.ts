@@ -48,6 +48,7 @@ export function useLeaderboard(sessionId: string | null, usePublished: boolean =
             referrals: 0,
             tyfcb: 0,
             visitors: 0,
+            ceu: 0,
           },
           position: 0,
         };
@@ -70,7 +71,7 @@ function calculateTeamBonuses(members: LeaderboardEntry[], bonusValues?: BonusVa
   if (!bonusValues || members.length === 0) return 0;
 
   let totalBonus = 0;
-  const categories: (keyof BonusValues)[] = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'];
+  const categories: (keyof BonusValues)[] = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors', 'ceu'];
 
   // Check each category for "All In" bonus
   categories.forEach((category) => {
@@ -98,6 +99,7 @@ export function useTeamStandings(sessionId: string | null, usePublished: boolean
     referrals: 100,
     tyfcb: 75,
     visitors: 50,
+    ceu: 50,
   };
 
   const standings = useMemo(() => {

@@ -79,6 +79,7 @@ export default function TeamLeaderScoringPage() {
               referrals: 0,
               tyfcb: 0,
               visitors: 0,
+              ceu: 0,
             };
           });
           setEditedScores(initial);
@@ -124,7 +125,8 @@ export default function TeamLeaderScoringPage() {
         referrals: 0,
         tyfcb: 0,
         visitors: 0,
-      };
+              ceu: 0
+            };
 
       // Get existing score to preserve custom bonuses
       const existingScore = scores.find(s => s.userId === userId && s.sessionId === activeSession.id);
@@ -224,7 +226,8 @@ export default function TeamLeaderScoringPage() {
         referrals: 0,
         tyfcb: 0,
         visitors: 0,
-      };
+              ceu: 0
+            };
       individualTotal += calculateTotal(metrics);
     });
 
@@ -253,7 +256,8 @@ export default function TeamLeaderScoringPage() {
           referrals: 0,
           tyfcb: 0,
           visitors: 0,
-        };
+              ceu: 0
+            };
 
         // Get existing score to preserve custom bonuses
         const existingScore = scores.find(s => s.userId === member.id && s.sessionId === activeSession.id);
@@ -461,7 +465,8 @@ export default function TeamLeaderScoringPage() {
                 referrals: 0,
                 tyfcb: 0,
                 visitors: 0,
-              };
+              ceu: 0
+            };
               const total = calculateTotal(metrics);
 
               return (
@@ -715,7 +720,8 @@ export default function TeamLeaderScoringPage() {
                     referrals: 0,
                     tyfcb: 0,
                     visitors: 0,
-                  };
+              ceu: 0
+            };
                   const total = calculateTotal(metrics);
 
                   return (

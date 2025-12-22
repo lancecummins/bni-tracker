@@ -118,7 +118,8 @@ function DisplayChartPageContent() {
         one21s: number[],
         referrals: number[],
         tyfcb: number[],
-        visitors: number[]
+        visitors: number[],
+        ceu: number[]
       }>();
 
       allScores.forEach(score => {
@@ -134,7 +135,8 @@ function DisplayChartPageContent() {
             one21s: [],
             referrals: [],
             tyfcb: [],
-            visitors: []
+            visitors: [],
+            ceu: []
           });
         }
         const userData = userScoresMap.get(score.userId)!;
@@ -144,6 +146,7 @@ function DisplayChartPageContent() {
         userData.referrals.push(score.metrics.referrals || 0);
         userData.tyfcb.push(score.metrics.tyfcb || 0);
         userData.visitors.push(score.metrics.visitors || 0);
+        userData.ceu.push(score.metrics.ceu || 0);
       });
 
       // Calculate averages for ALL active users (including those who didn't attend all sessions)
@@ -203,7 +206,8 @@ function DisplayChartPageContent() {
           one21s: safeAvg(userData?.one21s),
           referrals: safeAvg(userData?.referrals),
           tyfcb: safeAvg(userData?.tyfcb),
-          visitors: safeAvg(userData?.visitors)
+          visitors: safeAvg(userData?.visitors),
+          ceu: safeAvg(userData?.ceu)
         };
 
         avgEntries.push({
@@ -252,7 +256,8 @@ function DisplayChartPageContent() {
         one21s: number[],
         referrals: number[],
         tyfcb: number[],
-        visitors: number[]
+        visitors: number[],
+        ceu: number[]
       }>();
 
       allScores.forEach(score => {
@@ -268,7 +273,8 @@ function DisplayChartPageContent() {
             one21s: [],
             referrals: [],
             tyfcb: [],
-            visitors: []
+            visitors: [],
+            ceu: []
           });
         }
         const userData = userScoresMap.get(score.userId)!;
@@ -278,6 +284,7 @@ function DisplayChartPageContent() {
         userData.referrals.push(score.metrics.referrals || 0);
         userData.tyfcb.push(score.metrics.tyfcb || 0);
         userData.visitors.push(score.metrics.visitors || 0);
+        userData.ceu.push(score.metrics.ceu || 0);
       });
 
       // Get current session's leaderboard to compare against

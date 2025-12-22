@@ -94,8 +94,9 @@ export const scoreService = {
     const referrals = (metrics?.referrals || 0) * (pointValues?.referrals || 0);
     const tyfcb = (metrics?.tyfcb || 0) * (pointValues?.tyfcb || 0);
     const visitors = (metrics?.visitors || 0) * (pointValues?.visitors || 0);
+    const ceu = (metrics?.ceu || 0) * (pointValues?.ceu || 0);
 
-    const total = attendance + one21s + referrals + tyfcb + visitors;
+    const total = attendance + one21s + referrals + tyfcb + visitors + ceu;
     return isNaN(total) ? 0 : total;
   },
 

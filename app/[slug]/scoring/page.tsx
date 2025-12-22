@@ -102,6 +102,7 @@ export default function SlugScoringPage({ params }: PageProps) {
               referrals: 0,
               tyfcb: 0,
               visitors: 0,
+              ceu: 0,
             };
           });
           setEditedScores(initial);
@@ -149,7 +150,8 @@ export default function SlugScoringPage({ params }: PageProps) {
         referrals: 0,
         tyfcb: 0,
         visitors: 0,
-      };
+              ceu: 0
+            };
 
       // Get existing score to preserve custom bonuses
       const existingScore = scores.find(s => s.userId === userId && s.sessionId === activeSession.id);
@@ -204,7 +206,8 @@ export default function SlugScoringPage({ params }: PageProps) {
       (metrics.one21s || 0) * settings.pointValues.one21s +
       (metrics.referrals || 0) * settings.pointValues.referrals +
       (metrics.tyfcb || 0) * settings.pointValues.tyfcb +
-      (metrics.visitors || 0) * settings.pointValues.visitors
+      (metrics.visitors || 0) * settings.pointValues.visitors +
+      (metrics.ceu || 0) * settings.pointValues.ceu
     );
   };
 
@@ -249,7 +252,8 @@ export default function SlugScoringPage({ params }: PageProps) {
         referrals: 0,
         tyfcb: 0,
         visitors: 0,
-      };
+              ceu: 0
+            };
       individualTotal += calculateTotal(metrics);
     });
 
@@ -425,7 +429,8 @@ export default function SlugScoringPage({ params }: PageProps) {
                 referrals: 0,
                 tyfcb: 0,
                 visitors: 0,
-              };
+              ceu: 0
+            };
               const total = calculateTotal(metrics);
 
               return (
@@ -780,7 +785,8 @@ export default function SlugScoringPage({ params }: PageProps) {
                     referrals: 0,
                     tyfcb: 0,
                     visitors: 0,
-                  };
+              ceu: 0
+            };
                   const total = calculateTotal(metrics);
 
                   return (

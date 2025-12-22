@@ -27,6 +27,7 @@ export default function SeasonsManagementPage() {
       referrals: 25,
       tyfcb: 20,
       visitors: 15,
+      ceu: 10,
     } as PointValues,
     bonusValues: {
       attendance: 50,
@@ -34,6 +35,7 @@ export default function SeasonsManagementPage() {
       referrals: 100,
       tyfcb: 75,
       visitors: 50,
+      ceu: 50,
     } as BonusValues,
   });
 
@@ -384,7 +386,7 @@ export default function SeasonsManagementPage() {
                   {Object.entries(newSeason.pointValues).map(([key, value]) => (
                     <div key={key}>
                       <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                        {key === 'one21s' ? '1-2-1s' : key === 'tyfcb' ? 'TYFCB' : key}
+                        {key === 'one21s' ? '1-2-1s' : key === 'tyfcb' ? 'TYFCB' : key === 'ceu' ? 'CEU' : key}
                       </label>
                       <input
                         type="number"
@@ -412,7 +414,7 @@ export default function SeasonsManagementPage() {
                   {Object.entries(newSeason.bonusValues).map(([key, value]) => (
                     <div key={key}>
                       <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                        {key === 'one21s' ? '1-2-1s' : key === 'tyfcb' ? 'TYFCB' : key}
+                        {key === 'one21s' ? '1-2-1s' : key === 'tyfcb' ? 'TYFCB' : key === 'ceu' ? 'CEU' : key}
                       </label>
                       <input
                         type="number"

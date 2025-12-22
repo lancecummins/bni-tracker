@@ -48,6 +48,7 @@ export interface PointValues {
   referrals: number;
   tyfcb: number;
   visitors: number;
+  ceu: number;
 }
 
 export interface BonusValues {
@@ -56,6 +57,7 @@ export interface BonusValues {
   referrals: number;
   tyfcb: number;
   visitors: number;
+  ceu: number;
 }
 
 export type SessionStatus = 'draft' | 'open' | 'closed';
@@ -90,6 +92,7 @@ export interface ScoreMetrics {
   referrals: number;
   tyfcb: number;
   visitors: number;
+  ceu: number;
 }
 
 export interface CustomBonus {

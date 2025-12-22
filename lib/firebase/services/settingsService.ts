@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS: Settings = {
     referrals: 25,
     tyfcb: 20,
     visitors: 15,
+    ceu: 10,
   },
   bonusValues: {
     attendance: 50,
@@ -41,6 +42,7 @@ const DEFAULT_SETTINGS: Settings = {
     referrals: 100,
     tyfcb: 75,
     visitors: 50,
+    ceu: 50,
   },
   seasonSettings: {
     name: 'Winter 2025',

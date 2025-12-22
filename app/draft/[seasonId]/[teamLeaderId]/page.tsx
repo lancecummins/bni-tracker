@@ -149,6 +149,7 @@ export default function DraftPage({ params }: DraftPageProps) {
             referrals: Math.round((totalReferrals / numSessions) * 10) / 10,
             tyfcb: Math.round((totalTyfcb / numSessions) * 10) / 10,
             visitors: Math.round((totalVisitors / numSessions) * 10) / 10,
+            ceu: 0, // CEU was added later, so default to 0 for historical data
           };
 
           const previousTeam = teams.find(t => userScores[0]?.teamId === t.id);
@@ -283,6 +284,7 @@ export default function DraftPage({ params }: DraftPageProps) {
         referrals: 0,
         tyfcb: 0,
         visitors: 0,
+        ceu: 0,
       },
       position: 0,
     });

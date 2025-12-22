@@ -17,6 +17,7 @@ interface UserSeasonTotal {
     referrals: number;
     tyfcb: number;
     visitors: number;
+    ceu: number;
   };
 }
 
@@ -86,6 +87,7 @@ export function useSeasonTotals(seasonId: string | null) {
               referrals: 0,
               tyfcb: 0,
               visitors: 0,
+              ceu: 0,
             }
           };
           totalsMap.set(score.userId, userTotal);
@@ -102,6 +104,7 @@ export function useSeasonTotals(seasonId: string | null) {
         userTotal.categoryTotals.referrals += score.metrics.referrals;
         userTotal.categoryTotals.tyfcb += score.metrics.tyfcb;
         userTotal.categoryTotals.visitors += score.metrics.visitors;
+        userTotal.categoryTotals.ceu += score.metrics.ceu;
       });
     });
 
@@ -153,7 +156,7 @@ export function useSeasonTotals(seasonId: string | null) {
 
       // "All In" bonuses - only if all non-excluded team members have scores
       if (teamScores.length === nonExcludedMembers.length && nonExcludedMembers.length > 0) {
-        const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
+        const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors', 'ceu'] as const;
 
         categoryList.forEach(category => {
           const allMembersHaveCategory = nonExcludedMembers.every(member => {
@@ -330,7 +333,7 @@ export function useSeasonTotals(seasonId: string | null) {
         const nonExcludedMembers = allTeamMembers.filter(m => !excludedUserIds.includes(m.id!));
 
         if (teamScores.length === nonExcludedMembers.length && nonExcludedMembers.length > 0) {
-          const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
+          const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors', 'ceu'] as const;
           categoryList.forEach(category => {
             const allMembersHaveCategory = nonExcludedMembers.every(member => {
               const score = sessionScores.find(s => s.userId === member.id);

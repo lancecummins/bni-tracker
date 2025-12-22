@@ -98,6 +98,7 @@ export const generateMockSeason = (isActive: boolean = true): Season => {
     referrals: 25,
     tyfcb: 20,
     visitors: 15,
+    ceu: 10,
   };
 
   return {
@@ -143,6 +144,7 @@ export const generateMockMetrics = (weekNumber: number, userPerformance: number 
     referrals: Math.floor(randomInRange(0, 5) * baseMultiplier),
     tyfcb: Math.floor(randomInRange(0, 4) * baseMultiplier),
     visitors: Math.floor(randomInRange(0, 3) * baseMultiplier),
+    ceu: Math.floor(randomInRange(0, 2) * baseMultiplier),
   };
 };
 

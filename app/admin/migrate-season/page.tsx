@@ -51,6 +51,7 @@ export default function MigrateSeasonPage() {
           referrals: 25,
           tyfcb: 20,
           visitors: 15,
+          ceu: 10,
         },
         bonusValues: settings?.bonusValues || {
           attendance: 50,
@@ -58,6 +59,7 @@ export default function MigrateSeasonPage() {
           referrals: 100,
           tyfcb: 75,
           visitors: 50,
+          ceu: 50,
         },
         createdAt: Timestamp.now(),
       };

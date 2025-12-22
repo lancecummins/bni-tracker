@@ -121,7 +121,8 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
       one21s: 0,
       referrals: 0,
       tyfcb: 0,
-      visitors: 0
+      visitors: 0,
+      ceu: 0,
     };
   };
 
@@ -133,7 +134,8 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
       metrics.one21s * settings.pointValues.one21s +
       metrics.referrals * settings.pointValues.referrals +
       metrics.tyfcb * settings.pointValues.tyfcb +
-      metrics.visitors * settings.pointValues.visitors
+      metrics.visitors * settings.pointValues.visitors +
+      metrics.ceu * settings.pointValues.ceu
     );
   };
 

@@ -38,6 +38,7 @@ export default function LanceScoringPage() {
     referrals: 0,
     tyfcb: 0,
     visitors: 0,
+    ceu: 0,
   });
 
   const [saving, setSaving] = useState(false);
@@ -173,6 +174,7 @@ export default function LanceScoringPage() {
             referrals: 0,
             tyfcb: 0,
             visitors: 0,
+            ceu: 0,
           });
           setIsSaved(true);
         }

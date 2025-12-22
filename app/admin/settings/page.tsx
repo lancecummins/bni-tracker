@@ -15,6 +15,7 @@ export default function SettingsPage() {
     referrals: 25,
     tyfcb: 20,
     visitors: 15,
+    ceu: 10,
   });
 
   const [bonusValues, setBonusValues] = useState({
@@ -23,6 +24,7 @@ export default function SettingsPage() {
     referrals: 100,
     tyfcb: 75,
     visitors: 50,
+    ceu: 50,
   });
 
   const [seasonSettings, setSeasonSettings] = useState({
@@ -213,7 +215,7 @@ export default function SettingsPage() {
             {Object.entries(pointValues).map(([key, value]) => (
               <div key={key}>
                 <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                  {key === 'one21s' ? '1-2-1s' : key === 'tyfcb' ? 'TYFCB' : key.toUpperCase()}
+                  {key === 'one21s' ? '1-2-1s' : key === 'tyfcb' ? 'TYFCB' : key === 'ceu' ? 'CEU' : key.toUpperCase()}
                 </label>
                 <input
                   type="number"
@@ -238,7 +240,7 @@ export default function SettingsPage() {
             {Object.entries(bonusValues).map(([key, value]) => (
               <div key={key} className="bg-green-50 p-3 rounded-lg border border-green-200">
                 <label className="block text-sm font-medium text-green-800 mb-1">
-                  {key === 'one21s' ? '1-2-1s' : key === 'tyfcb' ? 'TYFCB' : key.toUpperCase()} Bonus
+                  {key === 'one21s' ? '1-2-1s' : key === 'tyfcb' ? 'TYFCB' : key === 'ceu' ? 'CEU' : key.toUpperCase()} Bonus
                 </label>
                 <div className="flex items-center gap-2">
                   <span className="text-green-600 text-sm">+</span>

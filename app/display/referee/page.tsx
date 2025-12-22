@@ -160,8 +160,9 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
       one21s: 0,
       referrals: 0,
       tyfcb: 0,
-      visitors: 0
-    };
+      visitors: 0,
+              ceu: 0
+            };
     const points = displayData.settings?.pointValues || {};
     // Use totalPoints from score (includes custom bonuses), fallback to calculated
     const total = displayData.score?.totalPoints || (

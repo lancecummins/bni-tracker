@@ -720,7 +720,8 @@ export default function RefereePage() {
               one21s: 0,
               referrals: 0,
               tyfcb: 0,
-              visitors: 0
+              visitors: 0,
+              ceu: 0
             },
             totalPoints: selectedBonus.points,
             isDraft: false,
@@ -1392,7 +1393,8 @@ export default function RefereePage() {
                             one21s: 0,
                             referrals: 0,
                             tyfcb: 0,
-                            visitors: 0
+                            visitors: 0,
+                            ceu: 0
                           },
                           totalPoints: selectedLanceBonus.points,
                           isDraft: false,
