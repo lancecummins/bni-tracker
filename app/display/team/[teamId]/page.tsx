@@ -299,7 +299,7 @@ export default function TeamDisplayPage() {
 
                   <div className="flex items-center gap-8">
                     {/* Metrics - Compact Grid */}
-                    <div className="grid grid-cols-5 gap-4 text-base">
+                    <div className="grid grid-cols-6 gap-4 text-base">
                       <div className="text-center">
                         <div className="text-white/40 text-2xl font-semibold">ATT</div>
                         <div className="font-semibold text-2xl">{member.metrics.attendance}</div>
@@ -319,6 +319,10 @@ export default function TeamDisplayPage() {
                       <div className="text-center">
                         <div className="text-white/40 text-2xl font-semibold">VIS</div>
                         <div className="font-semibold text-2xl">{member.metrics.visitors}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-white/40 text-2xl font-semibold">CEU</div>
+                        <div className="font-semibold text-2xl">{member.metrics.ceu}</div>
                       </div>
                     </div>
 
