@@ -189,10 +189,20 @@ export default function DraftSetupPage() {
             ) : (
               <AlertCircle className="text-red-600" size={20} />
             )}
-            <span className={teamsCount === 4 ? 'text-green-800' : 'text-red-800'}>
-              {teamsCount === 4 ? '✓ ' : '✗ '}
-              {teamsCount} of 4 teams created
-            </span>
+            <div className="flex-1">
+              <span className={teamsCount === 4 ? 'text-green-800' : 'text-red-800'}>
+                {teamsCount === 4 ? '✓ ' : '✗ '}
+                {teamsCount} of 4 teams created
+              </span>
+              {teamsCount !== 4 && teams.length === 4 && (
+                <div className="text-sm text-red-700 mt-1">
+                  Teams may be assigned to the wrong season.{' '}
+                  <Link href="/admin/fix-teams" className="underline font-semibold">
+                    Fix team assignments
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className={`flex items-center gap-3 p-3 rounded-lg ${
