@@ -262,9 +262,9 @@ export default function DraftPage({ params }: DraftPageProps) {
   // Create leaderboard from available users + picked users
   const leaderboard: LeaderboardEntry[] = [];
 
-  // Add all users to leaderboard except admins
+  // Add all active users to leaderboard except admins
   users.forEach(user => {
-    if (!user.id || user.role === 'admin') return;
+    if (!user.id || user.role === 'admin' || !user.isActive) return;
 
     const stats = previousSeasonStats.get(user.id);
     const isPicked = draft.picks.some(p => p.userId === user.id);
