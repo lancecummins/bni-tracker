@@ -154,7 +154,7 @@ export default function DraftSetupPage() {
       });
 
       await draftService.updateDraftOrder(draft.id, updatedTeamLeaders);
-      toast.success('Draft order updated!');
+      toast.success('Draft order updated successfully!');
     } catch (error) {
       console.error('Error updating draft order:', error);
       toast.error('Failed to update draft order');
@@ -188,7 +188,7 @@ export default function DraftSetupPage() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Draft Setup</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Draft Setup & Management</h1>
             <p className="text-gray-600 mt-1">
               Set up and manage the member draft for {activeSeason.name}
             </p>
