@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useActiveSeason, useTeams, useUsers } from '@/lib/firebase/hooks';
 import { draftService } from '@/lib/firebase/services/draftService';
 import { useDraftBySeasonId } from '@/lib/firebase/hooks/useDraft';
-import { Trophy, Users, PlayCircle, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
+import { Trophy, Users, PlayCircle, CheckCircle, AlertCircle, ExternalLink, ChevronUp, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
@@ -15,6 +15,7 @@ export default function DraftSetupPage() {
   const { draft, loading: draftLoading } = useDraftBySeasonId(activeSeason?.id || null);
   const [starting, setStarting] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [updatingOrder, setUpdatingOrder] = useState(false);
 
   // Filter teams for current season
   const currentSeasonTeams = teams.filter(team => team.seasonId === activeSeason?.id);
@@ -126,6 +127,39 @@ export default function DraftSetupPage() {
       toast.error('Failed to finalize draft. See console for details.');
     } finally {
       setFinalizing(false);
+    }
+  };
+
+  const handleMoveDraftPosition = async (currentPosition: number, direction: 'up' | 'down') => {
+    if (!draft?.id) return;
+
+    const newPosition = direction === 'up' ? currentPosition - 1 : currentPosition + 1;
+
+    // Can't move beyond bounds
+    if (newPosition < 1 || newPosition > draft.teamLeaders.length) {
+      return;
+    }
+
+    try {
+      setUpdatingOrder(true);
+
+      // Create new team leaders array with swapped positions
+      const updatedTeamLeaders = draft.teamLeaders.map(tl => {
+        if (tl.draftPosition === currentPosition) {
+          return { ...tl, draftPosition: newPosition };
+        } else if (tl.draftPosition === newPosition) {
+          return { ...tl, draftPosition: currentPosition };
+        }
+        return tl;
+      });
+
+      await draftService.updateDraftOrder(draft.id, updatedTeamLeaders);
+      toast.success('Draft order updated!');
+    } catch (error) {
+      console.error('Error updating draft order:', error);
+      toast.error('Failed to update draft order');
+    } finally {
+      setUpdatingOrder(false);
     }
   };
 
@@ -275,10 +309,10 @@ export default function DraftSetupPage() {
       {/* Draft Links (if draft exists) */}
       {draft && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Draft Links</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Draft Order</h2>
 
           <p className="text-sm text-gray-600 mb-4">
-            Share these links with each team leader so they can participate in the draft:
+            Use the arrows to reorder teams. Share these links with each team leader so they can participate in the draft:
           </p>
 
           <div className="space-y-2">
@@ -286,10 +320,30 @@ export default function DraftSetupPage() {
               const team = currentSeasonTeams.find(t => t.id === teamLeader.teamId);
               const leader = users.find(u => u.id === teamLeader.userId);
               const draftUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/draft/${activeSeason.id}/${teamLeader.userId}`;
+              const isFirst = teamLeader.draftPosition === 1;
+              const isLast = teamLeader.draftPosition === draft.teamLeaders.length;
 
               return (
                 <div key={teamLeader.userId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
+                    {/* Reorder Controls */}
+                    <div className="flex flex-col">
+                      <button
+                        onClick={() => handleMoveDraftPosition(teamLeader.draftPosition, 'up')}
+                        disabled={isFirst || updatingOrder}
+                        className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ChevronUp size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleMoveDraftPosition(teamLeader.draftPosition, 'down')}
+                        disabled={isLast || updatingOrder}
+                        className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                    </div>
+
                     <div className="text-lg font-bold text-gray-500">
                       #{teamLeader.draftPosition}
                     </div>

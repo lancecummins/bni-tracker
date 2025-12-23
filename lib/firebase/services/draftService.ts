@@ -315,4 +315,14 @@ export const draftService = {
       }
     );
   },
+
+  /**
+   * Update draft order positions
+   */
+  async updateDraftOrder(draftId: string, teamLeaders: Draft['teamLeaders']): Promise<void> {
+    const draftRef = doc(db, 'drafts', draftId);
+    await updateDoc(draftRef, {
+      teamLeaders,
+    });
+  },
 };
