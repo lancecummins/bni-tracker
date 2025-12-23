@@ -454,11 +454,11 @@ export default function DraftPage({ params }: DraftPageProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white">
-      <div className="flex gap-4 p-4 pb-8">
+      <div className="flex flex-col lg:flex-row gap-4 p-2 sm:p-4 pb-8">
         {/* Main Draft Area */}
         <div className="flex-1 flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between mb-3 gap-2">
           {isAdmin ? (
             <button
               onClick={() => router.push('/admin/draft-setup')}
@@ -468,32 +468,32 @@ export default function DraftPage({ params }: DraftPageProps) {
               <span>Back to Draft Setup</span>
             </button>
           ) : (
-            <div className="w-32"></div>
+            <div className="hidden sm:block sm:w-32"></div>
           )}
 
-          <div className="flex items-center gap-3">
-            <Trophy className="text-yellow-400" size={24} />
-            <h1 className="text-2xl font-bold">
-              {currentTeam?.name} - Team Draft
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Trophy className="text-yellow-400" size={20} />
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-center sm:text-left">
+              {currentTeam?.name} - Draft
             </h1>
           </div>
 
-          <div className="text-right">
-            <div className="text-sm text-white/70">Round {Math.floor(draft.currentPickNumber / 4) + 1}</div>
-            <div className="text-sm text-white/70">Pick {(draft.currentPickNumber % 4) + 1} of 4</div>
+          <div className="text-center sm:text-right">
+            <div className="text-xs sm:text-sm text-white/70">Round {Math.floor(draft.currentPickNumber / 4) + 1}</div>
+            <div className="text-xs sm:text-sm text-white/70">Pick {(draft.currentPickNumber % 4) + 1} of 4</div>
           </div>
         </div>
 
         {/* Current Turn Banner */}
-        <div className={`mb-4 p-4 rounded-lg ${
+        <div className={`mb-3 sm:mb-4 p-3 sm:p-4 rounded-lg ${
           isMyTurn ? 'bg-green-500/20 border-2 border-green-500' : 'bg-white/10'
         }`}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
             <div>
               {isMyTurn ? (
-                <p className="text-lg font-bold text-green-300">🎯 {teamLeader?.firstName}, it's your turn to pick!</p>
+                <p className="text-base sm:text-lg font-bold text-green-300">🎯 {teamLeader?.firstName}, it's your turn to pick!</p>
               ) : currentTurn ? (
-                <p className="text-lg font-bold text-white/90">
+                <p className="text-base sm:text-lg font-bold text-white/90">
                   The <strong>{teams.find(t => t.id === currentTurn.teamId)?.name}</strong> are on the clock.
                 </p>
               ) : (
@@ -507,10 +507,10 @@ export default function DraftPage({ params }: DraftPageProps) {
         </div>
 
         {/* Sort and Filter Controls */}
-        <div className="mb-4 flex justify-end items-center gap-3">
+        <div className="mb-3 sm:mb-4 grid grid-cols-2 gap-2 sm:gap-3">
           <button
             onClick={() => setShowUndraftedOnly(!showUndraftedOnly)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+            className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-semibold transition-colors ${
               showUndraftedOnly
                 ? 'bg-green-500 text-white'
                 : 'bg-white/10 text-white/70 hover:bg-white/20'
@@ -525,12 +525,12 @@ export default function DraftPage({ params }: DraftPageProps) {
             Show Undrafted Only
           </button>
 
-          <div className="flex items-center gap-3 bg-white/10 backdrop-blur-lg rounded-lg px-4 py-2">
-            <label className="text-sm text-white/70">Sort by:</label>
+          <div className="flex items-center gap-2 sm:gap-3 bg-white/10 backdrop-blur-lg rounded-lg px-3 sm:px-4 py-2">
+            <label className="text-xs sm:text-sm text-white/70">Sort:</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              className="bg-white/20 text-white rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-white/50"
+              className="bg-white/20 text-white rounded px-2 sm:px-3 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50"
             >
               <option value="team" className="bg-gray-900">Team</option>
               <option value="points" className="bg-gray-900">Points</option>
@@ -561,7 +561,7 @@ export default function DraftPage({ params }: DraftPageProps) {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.02 * index }}
-                  className={`relative grid grid-cols-[auto_300px_1fr_auto] items-center gap-6 p-6 rounded-xl overflow-hidden border-2 ${
+                  className={`relative grid grid-cols-[60px_1fr] sm:grid-cols-[80px_200px_1fr] items-center gap-2 sm:gap-4 p-2 sm:p-4 rounded-xl overflow-hidden border-2 ${
                     (isPicked || isTeamLeader) ? 'border-white/30' : 'border-white/10'
                   } hover:border-white/20 transition-colors`}
                   style={{
@@ -570,18 +570,18 @@ export default function DraftPage({ params }: DraftPageProps) {
                       : 'rgba(255, 255, 255, 0.05)'
                   }}
                 >
-                  {/* Pick Button or Team Logo */}
-                  <div className="w-32 pr-6">
+                  {/* Pick Button or Team Logo - Narrow Column */}
+                  <div className="flex items-center justify-center">
                     {isPicked && leader.team ? (
                       leader.team.logoUrl ? (
                         <img
                           src={leader.team.logoUrl}
                           alt={`${leader.team.name} logo`}
-                          className="w-20 h-20 object-cover"
+                          className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded"
                         />
                       ) : (
                         <div
-                          className="w-20 h-20 flex items-center justify-center text-white font-bold text-2xl"
+                          className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center text-white font-bold text-lg sm:text-xl rounded"
                           style={{ backgroundColor: leader.team.color }}
                         >
                           {leader.team.name.charAt(0)}
@@ -595,48 +595,49 @@ export default function DraftPage({ params }: DraftPageProps) {
                             <img
                               src={leaderTeam.logoUrl}
                               alt={`${leaderTeam.name} logo`}
-                              className="w-20 h-20 object-cover"
+                              className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded"
                             />
                           ) : (
                             <div
-                              className="w-20 h-20 flex items-center justify-center text-white font-bold text-2xl"
+                              className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center text-white font-bold text-lg sm:text-xl rounded"
                               style={{ backgroundColor: leaderTeam.color }}
                             >
                               {leaderTeam.name.charAt(0)}
                             </div>
                           )
                         ) : (
-                          <div className="w-20"></div>
+                          <div className="w-12 h-12 sm:w-16 sm:h-16"></div>
                         );
                       })()
                     ) : canPick ? (
                       <button
                         onClick={() => handlePickClick(leader.userId)}
                         disabled={picking}
-                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 text-sm whitespace-nowrap"
+                        className="w-12 h-12 sm:w-16 sm:h-16 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold transition-colors disabled:opacity-50 text-xs sm:text-sm flex items-center justify-center"
                       >
-                        Pick {leader.user.firstName}
+                        Pick
                       </button>
                     ) : (
-                      <div className="w-20"></div>
+                      <div className="w-12 h-12 sm:w-16 sm:h-16"></div>
                     )}
                   </div>
 
                   {/* User Info */}
-                  <div className="flex items-center gap-6">
-                    <div className="relative">
-                      <img
-                        src={leader.user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${leader.user.firstName}${leader.user.lastName}`}
-                        alt=""
-                        className="w-20 h-20 rounded-full border-4 object-cover border-white/30"
-                      />
-                    </div>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <img
+                      src={leader.user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${leader.user.firstName}${leader.user.lastName}`}
+                      alt=""
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 object-cover border-white/30"
+                    />
                     <div className="min-w-0 flex-shrink">
-                      <div className="text-2xl font-semibold flex items-center gap-3">
+                      <div className="text-base sm:text-lg font-semibold flex items-center gap-2 sm:gap-3">
                         {leader.user.firstName} {leader.user.lastName}
+                        <span className="text-base sm:text-lg text-white font-semibold">
+                          ({leader.weeklyPoints} Points)
+                        </span>
                       </div>
                       {isPicked && leader.team && (
-                        <div className="text-sm text-white/60 mt-1">
+                        <div className="text-xs sm:text-sm text-white/60 mt-1">
                           Picked by {leader.team.name}
                         </div>
                       )}
@@ -644,49 +645,36 @@ export default function DraftPage({ params }: DraftPageProps) {
                   </div>
 
                   {/* Metrics - Compact Grid */}
-                  <div className="grid grid-cols-5 gap-6 text-base justify-self-center">
+                  <div className="grid grid-cols-5 gap-1 sm:gap-4 text-base col-span-2 sm:col-span-1">
                     <div className="text-center">
-                      <div className="text-white/50 text-lg font-medium mb-1">Attendance</div>
-                      <div className="font-semibold text-3xl">
+                      <div className="text-white/50 text-xs sm:text-sm font-medium">Att</div>
+                      <div className="font-semibold text-lg sm:text-2xl">
                         {leader.metrics.attendance}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-white/50 text-lg font-medium mb-1">1-2-1s</div>
-                      <div className="font-semibold text-3xl">
+                      <div className="text-white/50 text-xs sm:text-sm font-medium">121</div>
+                      <div className="font-semibold text-lg sm:text-2xl">
                         {leader.metrics.one21s}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-white/50 text-lg font-medium mb-1">Referrals</div>
-                      <div className="font-semibold text-3xl">
+                      <div className="text-white/50 text-xs sm:text-sm font-medium">Ref</div>
+                      <div className="font-semibold text-lg sm:text-2xl">
                         {leader.metrics.referrals}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-white/50 text-lg font-medium mb-1">TYFCB</div>
-                      <div className="font-semibold text-3xl">
+                      <div className="text-white/50 text-xs sm:text-sm font-medium">TYF</div>
+                      <div className="font-semibold text-lg sm:text-2xl">
                         {leader.metrics.tyfcb}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-white/50 text-lg font-medium mb-1">Visitors</div>
-                      <div className="font-semibold text-3xl">
+                      <div className="text-white/50 text-xs sm:text-sm font-medium">Vis</div>
+                      <div className="font-semibold text-lg sm:text-2xl">
                         {leader.metrics.visitors}
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Average Points */}
-                  <div className="text-right">
-                    <div className="text-5xl font-bold text-white">
-                      {leader.weeklyPoints}
-                    </div>
-                    <div className="text-base text-white/50">
-                      avg pts
-                    </div>
-                    <div className="text-sm text-white/40 mt-1">
-                      total: {leader.totalPoints}
                     </div>
                   </div>
                 </motion.div>
@@ -703,25 +691,18 @@ export default function DraftPage({ params }: DraftPageProps) {
         </div>
 
         {/* Team Rosters Sidebar */}
-        <div className="w-80 flex flex-col gap-3">
-          <h2 className="text-xl font-bold text-white mb-2">Team Rosters</h2>
+        <div className="w-full lg:w-80 flex flex-col gap-3">
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-2">Team Rosters</h2>
           {sortedTeamRosters.map(({ team, teamLeader, members }) => (
             <div
               key={team.id}
-              className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border-2"
+              className="bg-white/10 backdrop-blur-lg rounded-xl p-3 sm:p-4 border-2"
               style={{ borderColor: team.color }}
             >
               {/* Team Header */}
-              <div className="flex items-center gap-3 mb-3">
-                {team.logoUrl && (
-                  <img
-                    src={team.logoUrl}
-                    alt={`${team.name} logo`}
-                    className="w-12 h-12 object-cover"
-                  />
-                )}
+              <div className="flex items-center gap-2 sm:gap-3 mb-3">
                 <div>
-                  <h3 className="font-bold text-lg" style={{ color: team.color }}>
+                  <h3 className="font-bold text-base sm:text-lg" style={{ color: team.color }}>
                     {team.name}
                   </h3>
                   <p className="text-xs text-white/60">
@@ -735,13 +716,8 @@ export default function DraftPage({ params }: DraftPageProps) {
                 {/* Team Leader */}
                 {teamLeader && (
                   <div className="flex items-center gap-2 p-2 bg-yellow-500/20 rounded-lg border border-yellow-500/50">
-                    <img
-                      src={teamLeader.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${teamLeader.firstName}${teamLeader.lastName}`}
-                      alt=""
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">
+                      <p className="text-xs sm:text-sm font-semibold text-white truncate">
                         {teamLeader.firstName} {teamLeader.lastName}
                       </p>
                       <p className="text-xs text-yellow-400">Team Leader</p>
@@ -755,13 +731,8 @@ export default function DraftPage({ params }: DraftPageProps) {
                     key={member.id}
                     className="flex items-center gap-2 p-2 bg-white/5 rounded-lg"
                   >
-                    <img
-                      src={member.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${member.firstName}${member.lastName}`}
-                      alt=""
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">
+                      <p className="text-xs sm:text-sm font-semibold text-white truncate">
                         {member.firstName} {member.lastName}
                       </p>
                       <p className="text-xs text-white/60">Pick #{idx + 1}</p>
