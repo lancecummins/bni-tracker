@@ -68,7 +68,7 @@ export default function TeamDisplayPage() {
 
   // Check which categories earned the "All In" bonus
   const checkAllInCategories = () => {
-    const categories = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
+    const categories = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors', 'ceu'] as const;
     const allInCategories: string[] = [];
 
     categories.forEach(category => {

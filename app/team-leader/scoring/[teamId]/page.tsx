@@ -343,6 +343,9 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
                     Visitors
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    CEU
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Total
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -418,6 +421,15 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
                           min="0"
                           value={score.visitors}
                           onChange={(e) => updateScore(member.id!, 'visitors', parseInt(e.target.value) || 0)}
+                          className="w-16 text-center border border-gray-300 rounded-md px-2 py-1 text-sm"
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="number"
+                          min="0"
+                          value={score.ceu}
+                          onChange={(e) => updateScore(member.id!, 'ceu', parseInt(e.target.value) || 0)}
                           className="w-16 text-center border border-gray-300 rounded-md px-2 py-1 text-sm"
                         />
                       </td>
@@ -542,6 +554,16 @@ export default function TeamScoringPage({ params }: TeamScoringPageProps) {
                         min="0"
                         value={score.visitors}
                         onChange={(e) => updateScore(member.id!, 'visitors', parseInt(e.target.value) || 0)}
+                        className="w-full text-center border border-gray-300 rounded-md px-2 py-1 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">CEU</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={score.ceu}
+                        onChange={(e) => updateScore(member.id!, 'ceu', parseInt(e.target.value) || 0)}
                         className="w-full text-center border border-gray-300 rounded-md px-2 py-1 text-sm"
                       />
                     </div>

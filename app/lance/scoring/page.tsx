@@ -726,6 +726,59 @@ export default function LanceScoringPage() {
                 </div>
               </div>
 
+              {/* CEU */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  CEU ({settings?.pointValues.ceu || 0} pts each)
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(val => (
+                    <button
+                      key={val}
+                      onClick={() => {
+                        const newVal = editedScore.ceu === val ? '0' : val.toString();
+                        handleMetricChange('ceu', newVal);
+                      }}
+                      className={`flex-1 py-3 rounded-lg text-base font-medium transition-colors ${
+                        editedScore.ceu === val
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={tempInputs.ceu ?? (editedScore.ceu > 5 ? editedScore.ceu : '')}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setTempInputs(prev => ({ ...prev, ceu: val }));
+                      const num = parseInt(val) || 0;
+                      if (num === 0 || num >= 6) {
+                        handleMetricChange('ceu', val || '0');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const numVal = parseInt(e.target.value) || 0;
+                      if (numVal > 0 && numVal < 6) {
+                        handleMetricChange('ceu', '0');
+                      }
+                      setTempInputs(prev => {
+                        const copy = { ...prev };
+                        delete copy.ceu;
+                        return copy;
+                      });
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="6+"
+                    className="w-20 px-3 py-3 text-center border-2 rounded-lg text-base"
+                  />
+                </div>
+              </div>
+
               {/* Save Button */}
               <div className="mt-6 pt-6 border-t">
                 <button

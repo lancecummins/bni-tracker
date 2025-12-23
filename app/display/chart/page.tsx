@@ -11,7 +11,7 @@ import { shownUsersStore } from '@/lib/utils/revealedUsersStore';
 import { LeaderboardEntry } from '@/lib/types';
 
 type ViewMode = 'session' | 'average' | 'rising';
-type MetricType = 'points' | 'attendance' | 'one21s' | 'referrals' | 'tyfcb' | 'visitors';
+type MetricType = 'points' | 'attendance' | 'one21s' | 'referrals' | 'tyfcb' | 'visitors' | 'ceu';
 
 function DisplayChartPageContent() {
   const router = useRouter();
@@ -297,6 +297,7 @@ function DisplayChartPageContent() {
           referrals: number;
           tyfcb: number;
           visitors: number;
+          ceu: number;
         }
       })[] = [];
 
@@ -341,7 +342,8 @@ function DisplayChartPageContent() {
           one21s: calculateAvg(userData.one21s),
           referrals: calculateAvg(userData.referrals),
           tyfcb: calculateAvg(userData.tyfcb),
-          visitors: calculateAvg(userData.visitors)
+          visitors: calculateAvg(userData.visitors),
+          ceu: calculateAvg(userData.ceu)
         };
 
         // Calculate improvement percentage for selected metric
@@ -388,6 +390,7 @@ function DisplayChartPageContent() {
       case 'referrals': return 'Referrals';
       case 'tyfcb': return 'TYFCB';
       case 'visitors': return 'Visitors';
+      case 'ceu': return 'CEU';
     }
   };
 
@@ -475,7 +478,7 @@ function DisplayChartPageContent() {
 
               {showMetricDropdown && (
                 <div className="absolute right-0 mt-1 bg-white text-gray-900 rounded-lg shadow-lg overflow-hidden z-10 min-w-[140px]">
-                  {(['points', 'attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as MetricType[]).map((metric) => (
+                  {(['points', 'attendance', 'one21s', 'referrals', 'tyfcb', 'visitors', 'ceu'] as MetricType[]).map((metric) => (
                     <button
                       key={metric}
                       onClick={() => {
@@ -553,7 +556,7 @@ function DisplayChartPageContent() {
                   </div>
 
                   {/* Metrics - Compact Grid */}
-                  <div className="grid grid-cols-5 gap-6 text-base justify-self-center">
+                  <div className="grid grid-cols-6 gap-6 text-base justify-self-center">
                     {/* Attendance */}
                     <div className="text-center">
                       <div className="text-white/50 text-lg font-medium mb-1">Attendance</div>
@@ -631,6 +634,22 @@ function DisplayChartPageContent() {
                       {viewMode === 'rising' && (leader as any).averageMetrics && (
                         <div className="text-xs text-white/40 mt-1">
                           avg: {Math.round((leader as any).averageMetrics.visitors * 10) / 10}
+                        </div>
+                      )}
+                    </div>
+                    {/* CEU */}
+                    <div className="text-center">
+                      <div className="text-white/50 text-lg font-medium mb-1">CEU</div>
+                      <div className={`font-semibold text-3xl ${
+                        viewMode === 'rising' && (leader as any).averageMetrics && leader.metrics.ceu > (leader as any).averageMetrics.ceu
+                          ? 'text-green-400'
+                          : ''
+                      }`}>
+                        {leader.metrics.ceu}
+                      </div>
+                      {viewMode === 'rising' && (leader as any).averageMetrics && (
+                        <div className="text-xs text-white/40 mt-1">
+                          avg: {Math.round((leader as any).averageMetrics.ceu * 10) / 10}
                         </div>
                       )}
                     </div>

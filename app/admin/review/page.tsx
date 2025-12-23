@@ -318,6 +318,7 @@ export default function AdminReviewPage() {
                   <th className="px-4 py-2 text-center text-sm font-medium text-gray-700">Ref</th>
                   <th className="px-4 py-2 text-center text-sm font-medium text-gray-700">TYFCB</th>
                   <th className="px-4 py-2 text-center text-sm font-medium text-gray-700">Vis</th>
+                  <th className="px-4 py-2 text-center text-sm font-medium text-gray-700">CEU</th>
                   <th className="px-4 py-2 text-center text-sm font-medium text-gray-700">Total</th>
                   <th className="px-4 py-2 text-center text-sm font-medium text-gray-700">Status</th>
                 </tr>
@@ -346,6 +347,7 @@ export default function AdminReviewPage() {
                         <td className="px-4 py-2 text-center">{score.metrics.referrals}</td>
                         <td className="px-4 py-2 text-center">{score.metrics.tyfcb}</td>
                         <td className="px-4 py-2 text-center">{score.metrics.visitors}</td>
+                        <td className="px-4 py-2 text-center">{score.metrics.ceu}</td>
                         <td className="px-4 py-2 text-center font-semibold">{score.totalPoints}</td>
                         <td className="px-4 py-2 text-center">
                           <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">

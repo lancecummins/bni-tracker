@@ -123,7 +123,7 @@ export default function TeamsPage() {
 
             // "All In" bonuses
             if (teamScores.length === nonExcludedMembers.length && nonExcludedMembers.length > 0) {
-              const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors'] as const;
+              const categoryList = ['attendance', 'one21s', 'referrals', 'tyfcb', 'visitors', 'ceu'] as const;
               categoryList.forEach(category => {
                 const allMembersHaveCategory = nonExcludedMembers.every(member => {
                   const score = sessionScores.find(s => s.userId === member.id);

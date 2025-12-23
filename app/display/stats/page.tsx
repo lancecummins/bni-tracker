@@ -66,6 +66,7 @@ export default function SeasonDashboardPage() {
     referrals: { userId: '', total: 0 },
     tyfcb: { userId: '', total: 0 },
     visitors: { userId: '', total: 0 },
+    ceu: { userId: '', total: 0 },
   };
 
   userTotals.forEach(userTotal => {

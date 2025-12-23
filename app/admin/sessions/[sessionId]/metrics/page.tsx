@@ -14,7 +14,7 @@ interface UserWithScore {
   score: Score | null;
 }
 
-type SortColumn = 'name' | 'attendance' | 'one21s' | 'referrals' | 'tyfcb' | 'visitors' | 'total';
+type SortColumn = 'name' | 'attendance' | 'one21s' | 'referrals' | 'tyfcb' | 'visitors' | 'ceu' | 'total';
 type SortDirection = 'asc' | 'desc';
 
 export default function SessionMetricsPage() {
@@ -34,6 +34,7 @@ export default function SessionMetricsPage() {
     referrals: true,
     tyfcb: true,
     visitors: true,
+    ceu: true,
     total: true,
   });
 
@@ -127,6 +128,8 @@ export default function SessionMetricsPage() {
             return (item.score?.metrics.tyfcb || 0) >= 1;
           case 'visitors':
             return (item.score?.metrics.visitors || 0) >= 1;
+          case 'ceu':
+            return (item.score?.metrics.ceu || 0) >= 1;
           case 'total':
             return (item.score?.totalPoints || 0) >= 1;
           default:
@@ -158,6 +161,9 @@ export default function SessionMetricsPage() {
           break;
         case 'visitors':
           comparison = (a.score?.metrics.visitors || 0) - (b.score?.metrics.visitors || 0);
+          break;
+        case 'ceu':
+          comparison = (a.score?.metrics.ceu || 0) - (b.score?.metrics.ceu || 0);
           break;
         case 'total':
           comparison = (a.score?.totalPoints || 0) - (b.score?.totalPoints || 0);
@@ -196,7 +202,7 @@ export default function SessionMetricsPage() {
   };
 
   const exportToCSV = () => {
-    const headers = ['Name', 'Email', 'Attendance', '1-2-1s', 'Referrals', 'TYFCB', 'Visitors', 'Total Points'];
+    const headers = ['Name', 'Email', 'Attendance', '1-2-1s', 'Referrals', 'TYFCB', 'Visitors', 'CEU', 'Total Points'];
     const rows = usersWithScores.map(({ user, score }) => [
       `${user.firstName} ${user.lastName}`,
       user.email,
@@ -205,6 +211,7 @@ export default function SessionMetricsPage() {
       score?.metrics.referrals || 0,
       score?.metrics.tyfcb || 0,
       score?.metrics.visitors || 0,
+      score?.metrics.ceu || 0,
       score?.totalPoints || 0,
     ]);
 
@@ -395,6 +402,22 @@ export default function SessionMetricsPage() {
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input
                 type="checkbox"
+                checked={visibleColumns.ceu}
+                onChange={(e) => {
+                  setVisibleColumns({...visibleColumns, ceu: e.target.checked});
+                  if (e.target.checked) {
+                    setSortColumn('ceu');
+                    setSortDirection('desc');
+                    setHideZeroValues(true);
+                  }
+                }}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span>CEU</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
                 checked={visibleColumns.total}
                 onChange={(e) => {
                   setVisibleColumns({...visibleColumns, total: e.target.checked});
@@ -517,6 +540,23 @@ export default function SessionMetricsPage() {
                       </div>
                     </th>
                   )}
+                  {visibleColumns.ceu && (
+                    <th
+                      className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
+                        sortColumn === 'ceu' ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}
+                      onClick={() => handleSort('ceu')}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        CEU
+                        {sortColumn === 'ceu' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                        ) : (
+                          <ArrowUpDown size={16} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                  )}
                   {visibleColumns.total && (
                     <th
                       className={`px-6 py-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors sticky top-0 z-10 ${
@@ -594,6 +634,13 @@ export default function SessionMetricsPage() {
                         <td className={`px-6 py-4 text-center ${sortColumn === 'visitors' ? 'bg-blue-50' : ''}`}>
                           <span className={`text-4xl font-bold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
                             {score?.metrics.visitors || 0}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.ceu && (
+                        <td className={`px-6 py-4 text-center ${sortColumn === 'ceu' ? 'bg-blue-50' : ''}`}>
+                          <span className={`text-4xl font-bold ${hasScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {score?.metrics.ceu || 0}
                           </span>
                         </td>
                       )}

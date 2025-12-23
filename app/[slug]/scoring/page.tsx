@@ -705,6 +705,62 @@ export default function SlugScoringPage({ params }: PageProps) {
                       </div>
                     </div>
 
+                    {/* CEU */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-600">
+                        CEU ({settings?.pointValues.ceu || 0}pts)
+                      </label>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((val) => (
+                          <button
+                            key={val}
+                            onClick={() => {
+                              const newVal = metrics.ceu === val ? '0' : val.toString();
+                              handleMetricChange(member.id!, 'ceu', newVal);
+                            }}
+                            className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
+                              metrics.ceu === val
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        ))}
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={tempInputs[member.id!]?.ceu ?? (metrics.ceu > 5 ? metrics.ceu : '')}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setTempInputs(prev => ({
+                              ...prev,
+                              [member.id!]: { ...prev[member.id!], ceu: val }
+                            }));
+                            const num = parseInt(val) || 0;
+                            if (num === 0 || num >= 6) {
+                              handleMetricChange(member.id!, 'ceu', val || '0');
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const numVal = parseInt(e.target.value) || 0;
+                            if (numVal > 0 && numVal < 6) {
+                              handleMetricChange(member.id!, 'ceu', '0');
+                            }
+                            setTempInputs(prev => {
+                              const copy = { ...prev };
+                              if (copy[member.id!]) delete copy[member.id!].ceu;
+                              return copy;
+                            });
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="6+"
+                          className="w-14 px-2 py-2 text-center border rounded text-sm"
+                        />
+                      </div>
+                    </div>
+
                     {/* Save button for this user */}
                     <div className="mt-3 pt-3 border-t">
                       <button
@@ -773,6 +829,10 @@ export default function SlugScoringPage({ params }: PageProps) {
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
                     <div>Visitors</div>
                     <div className="text-xs font-normal text-gray-500">{settings?.pointValues.visitors || 0}pts</div>
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                    <div>CEU</div>
+                    <div className="text-xs font-normal text-gray-500">{settings?.pointValues.ceu || 0}pts</div>
                   </th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Total</th>
                 </tr>
@@ -859,6 +919,15 @@ export default function SlugScoringPage({ params }: PageProps) {
                           min="0"
                           value={metrics.visitors || 0}
                           onChange={(e) => handleMetricChange(member.id!, 'visitors', e.target.value)}
+                          className="w-16 px-2 py-1 text-center border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          value={metrics.ceu || 0}
+                          onChange={(e) => handleMetricChange(member.id!, 'ceu', e.target.value)}
                           className="w-16 px-2 py-1 text-center border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>

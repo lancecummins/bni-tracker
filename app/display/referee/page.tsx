@@ -47,6 +47,7 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
     referrals: false,
     tyfcb: false,
     visitors: false,
+    ceu: false,
     total: false
   });
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
@@ -68,6 +69,7 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
         referrals: true,
         tyfcb: true,
         visitors: true,
+        ceu: true,
         total: true
       });
     }
@@ -220,7 +222,7 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
           </motion.div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-5 gap-6">
+          <div className="grid grid-cols-6 gap-6">
             <AnimatePresence>
               {/* Attendance */}
               <motion.div
@@ -348,6 +350,32 @@ export default function RefereeDisplayPage({ initialData }: { initialData?: Disp
                     className="text-2xl font-bold text-yellow-400 mt-2"
                   >
                     {metrics.visitors * (points.visitors || 0)} pts
+                  </motion.div>
+                )}
+              </motion.div>
+
+              {/* CEU */}
+              <motion.div
+                key="ceu"
+                initial={metrics.ceu > 0 ? { scale: 0, rotate: -180 } : {}}
+                animate={revealedStats.ceu && metrics.ceu > 0 ? { scale: 1, rotate: 0 } : {}}
+                transition={{ type: "spring", duration: 0.6 }}
+                className={`${metrics.ceu > 0 ? 'bg-white/10 backdrop-blur' : 'bg-transparent'} rounded-2xl p-6 text-center`}
+              >
+                <div className="text-4xl font-bold text-white mb-2">
+                  {revealedStats.ceu && metrics.ceu > 0 ? metrics.ceu : ''}
+                </div>
+                {revealedStats.ceu && metrics.ceu > 0 && (
+                  <div className="text-lg text-blue-200">CEU</div>
+                )}
+                {revealedStats.ceu && metrics.ceu > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-2xl font-bold text-yellow-400 mt-2"
+                  >
+                    {metrics.ceu * (points.ceu || 0)} pts
                   </motion.div>
                 )}
               </motion.div>

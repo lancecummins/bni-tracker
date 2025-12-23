@@ -221,7 +221,8 @@ export default function UsersPage() {
         ((userScore.metrics.one21s || 0) * (settings.pointValues.one21s || 0)) +
         ((userScore.metrics.referrals || 0) * (settings.pointValues.referrals || 0)) +
         ((userScore.metrics.tyfcb || 0) * (settings.pointValues.tyfcb || 0)) +
-        ((userScore.metrics.visitors || 0) * (settings.pointValues.visitors || 0))
+        ((userScore.metrics.visitors || 0) * (settings.pointValues.visitors || 0)) +
+        ((userScore.metrics.ceu || 0) * (settings.pointValues.ceu || 0))
       );
 
       await updateDoc(doc(db, 'scores', userScore.id!), {

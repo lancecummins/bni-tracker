@@ -1151,13 +1151,14 @@ function DisplayPageContent() {
                   <Star className="text-purple-400" size={20} />
                   <h2 className="text-lg font-bold">Category Leaders</h2>
                 </div>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-5 gap-3">
                   {(() => {
                     const categories = [
                       { key: 'one21s', label: '1-2-1s' },
                       { key: 'referrals', label: 'Referrals' },
                       { key: 'tyfcb', label: 'TYFCB' },
                       { key: 'visitors', label: 'Visitors' },
+                      { key: 'ceu', label: 'CEU' },
                     ] as const;
 
                     return categories.map((category) => {

@@ -11,7 +11,7 @@ interface UserWithScore {
   score: Score | null;
 }
 
-type SortColumn = 'name' | 'attendance' | 'one21s' | 'referrals' | 'tyfcb' | 'visitors' | 'total';
+type SortColumn = 'name' | 'attendance' | 'one21s' | 'referrals' | 'tyfcb' | 'visitors' | 'ceu' | 'total';
 type SortDirection = 'asc' | 'desc';
 
 interface DisplaySettings {
@@ -22,6 +22,7 @@ interface DisplaySettings {
     referrals: boolean;
     tyfcb: boolean;
     visitors: boolean;
+    ceu: boolean;
     total: boolean;
   };
   sortColumn: SortColumn;

@@ -97,11 +97,36 @@ export const draftService = {
       timestamp: Timestamp.now(),
     };
 
-    const docRef = doc(db, 'drafts', draftId);
-    await updateDoc(docRef, {
+    // Use batch to update both draft and user/team in one atomic operation
+    const batch = writeBatch(db);
+
+    // Update draft with new pick
+    const draftRef = doc(db, 'drafts', draftId);
+    batch.update(draftRef, {
       picks: [...draft.picks, newPick],
       currentPickNumber: draft.currentPickNumber + 1,
     });
+
+    // Immediately assign user to team
+    const userRef = doc(db, 'users', userId);
+    batch.update(userRef, {
+      teamId: teamId,
+    });
+
+    // Add user to team's memberIds
+    const teamRef = doc(db, 'teams', teamId);
+    const teamDoc = await getDoc(teamRef);
+    if (teamDoc.exists()) {
+      const teamData = teamDoc.data() as Team;
+      const currentMemberIds = teamData.memberIds || [];
+      if (!currentMemberIds.includes(userId)) {
+        batch.update(teamRef, {
+          memberIds: [...currentMemberIds, userId],
+        });
+      }
+    }
+
+    await batch.commit();
   },
 
   /**
