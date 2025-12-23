@@ -491,11 +491,10 @@ export default function DraftPage({ params }: DraftPageProps) {
           <div className="flex items-center justify-between">
             <div>
               {isMyTurn ? (
-                <p className="text-lg font-bold text-green-300">🎯 It's your turn to pick!</p>
+                <p className="text-lg font-bold text-green-300">🎯 {teamLeader?.firstName}, it's your turn to pick!</p>
               ) : currentTurn ? (
-                <p className="text-white/90">
-                  Waiting for <strong>{users.find(u => u.id === currentTurn.userId)?.firstName}</strong> (
-                  {teams.find(t => t.id === currentTurn.teamId)?.name}) to pick...
+                <p className="text-lg font-bold text-white/90">
+                  The <strong>{teams.find(t => t.id === currentTurn.teamId)?.name}</strong> are on the clock.
                 </p>
               ) : (
                 <p className="text-white/90">Draft completed!</p>
