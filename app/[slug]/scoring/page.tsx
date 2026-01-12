@@ -27,7 +27,6 @@ export default function SlugScoringPage({ params }: PageProps) {
   const [editedScores, setEditedScores] = useState<Record<string, ScoreMetrics>>({});
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [mobileView, setMobileView] = useState<'table' | 'cards'>('cards');
   const [savingUsers, setSavingUsers] = useState<Record<string, boolean>>({});
   const [savedUsers, setSavedUsers] = useState<Record<string, boolean>>({});
   const [tempInputs, setTempInputs] = useState<Record<string, Record<string, string>>>({});
@@ -135,6 +134,20 @@ export default function SlugScoringPage({ params }: PageProps) {
     }));
     // Mark user as unsaved
     setSavedUsers(prev => ({ ...prev, [userId]: false }));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, userId: string, metric: keyof ScoreMetrics) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+
+      // Find the next input field
+      const inputs = Array.from(document.querySelectorAll('input[type="text"][inputmode="numeric"]')) as HTMLInputElement[];
+      const currentIndex = inputs.indexOf(e.currentTarget);
+
+      if (currentIndex !== -1 && currentIndex < inputs.length - 1) {
+        inputs[currentIndex + 1].focus();
+      }
+    }
   };
 
   // Save individual user score
@@ -393,34 +406,8 @@ export default function SlugScoringPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Mobile View Toggle */}
-        <div className="md:hidden flex justify-end mb-4 px-4">
-          <div className="bg-white rounded-lg shadow-sm p-1 inline-flex">
-            <button
-              onClick={() => setMobileView('cards')}
-              className={`px-3 py-1 rounded text-sm ${
-                mobileView === 'cards'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Cards
-            </button>
-            <button
-              onClick={() => setMobileView('table')}
-              className={`px-3 py-1 rounded text-sm ${
-                mobileView === 'table'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Table
-            </button>
-          </div>
-        </div>
-
         {/* Mobile Card View */}
-        <div className={`md:hidden ${mobileView === 'cards' ? 'block' : 'hidden'} px-4`}>
+        <div className="md:hidden px-4">
           <div className="space-y-3">
             {teamMembers.map(member => {
               const metrics = editedScores[member.id!] || {
@@ -801,10 +788,8 @@ export default function SlugScoringPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Desktop Table View (and mobile table if selected) */}
-        <div className={`bg-white md:rounded-lg shadow-sm overflow-hidden md:mx-4 ${
-          mobileView === 'table' ? 'block' : 'hidden md:block'
-        }`}>
+        {/* Desktop Table View */}
+        <div className="hidden md:block bg-white md:rounded-lg shadow-sm overflow-hidden md:mx-4">
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-gray-50 border-b">
@@ -835,6 +820,7 @@ export default function SlugScoringPage({ params }: PageProps) {
                     <div className="text-xs font-normal text-gray-500">{settings?.pointValues.ceu || 0}pts</div>
                   </th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Total</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -888,51 +874,113 @@ export default function SlugScoringPage({ params }: PageProps) {
                       </td>
                       <td className="px-4 py-3">
                         <input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           value={metrics.one21s || 0}
-                          onChange={(e) => handleMetricChange(member.id!, 'one21s', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            handleMetricChange(member.id!, 'one21s', val || '0');
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => handleKeyDown(e, member.id!, 'one21s')}
                           className="w-16 px-2 py-1 text-center border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           value={metrics.referrals || 0}
-                          onChange={(e) => handleMetricChange(member.id!, 'referrals', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            handleMetricChange(member.id!, 'referrals', val || '0');
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => handleKeyDown(e, member.id!, 'referrals')}
                           className="w-16 px-2 py-1 text-center border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           value={metrics.tyfcb || 0}
-                          onChange={(e) => handleMetricChange(member.id!, 'tyfcb', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            handleMetricChange(member.id!, 'tyfcb', val || '0');
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => handleKeyDown(e, member.id!, 'tyfcb')}
                           className="w-16 px-2 py-1 text-center border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           value={metrics.visitors || 0}
-                          onChange={(e) => handleMetricChange(member.id!, 'visitors', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            handleMetricChange(member.id!, 'visitors', val || '0');
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => handleKeyDown(e, member.id!, 'visitors')}
                           className="w-16 px-2 py-1 text-center border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           value={metrics.ceu || 0}
-                          onChange={(e) => handleMetricChange(member.id!, 'ceu', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            handleMetricChange(member.id!, 'ceu', val || '0');
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => handleKeyDown(e, member.id!, 'ceu')}
                           className="w-16 px-2 py-1 text-center border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className="font-medium text-lg">{total}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleSaveUser(member.id!)}
+                          disabled={savingUsers[member.id!] || savedUsers[member.id!]}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                            savedUsers[member.id!]
+                              ? 'bg-gray-100 text-gray-400'
+                              : savingUsers[member.id!]
+                              ? 'bg-blue-300 text-white'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            {savingUsers[member.id!] ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                <span>Saving...</span>
+                              </>
+                            ) : savedUsers[member.id!] ? (
+                              <>
+                                <CheckCircle size={16} />
+                                <span>Saved</span>
+                              </>
+                            ) : (
+                              <>
+                                <Save size={16} />
+                                <span>Save</span>
+                              </>
+                            )}
+                          </div>
+                        </button>
                       </td>
                     </tr>
                   );

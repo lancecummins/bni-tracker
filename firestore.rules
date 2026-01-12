@@ -68,13 +68,13 @@ service cloud.firestore {
 
     // Scores collection
     match /scores/{scoreId} {
-      // Anyone can read scores (needed for draft page)
+      // Anyone can read scores (needed for draft page and public displays)
       allow read: if true;
-      // Admins can do anything
-      allow create, update, delete: if isAdmin();
-      // Team leaders can create/update draft scores
-      allow create: if isTeamLeader() && request.resource.data.isDraft == true;
-      allow update: if isTeamLeader() && resource.data.isDraft == true;
+      // Allow unauthenticated access for team slug-based scoring pages
+      // These pages are protected by the obscure team slug URL
+      allow create, update: if true;
+      // Only admins can delete scores
+      allow delete: if isAdmin();
     }
 
     // Settings collection
