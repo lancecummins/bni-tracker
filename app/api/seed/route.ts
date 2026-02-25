@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { seedDatabase, clearDatabase } from '@/lib/mockData/seeder';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +12,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Dynamic import so Firebase is not loaded at build time (avoids auth/invalid-api-key on Vercel)
+    const { seedDatabase } = await import('@/lib/mockData/seeder');
 
     // Get parameters from request body
     const body = await request.json().catch(() => ({}));
@@ -58,6 +60,9 @@ export async function DELETE(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Dynamic import so Firebase is not loaded at build time (avoids auth/invalid-api-key on Vercel)
+    const { clearDatabase } = await import('@/lib/mockData/seeder');
 
     console.log('Clearing database via API...');
 
