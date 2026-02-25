@@ -771,7 +771,7 @@ function DisplayPageContent() {
               transition={{ delay: 0.8, duration: 0.6 }}
               className="grid grid-cols-2 gap-3 w-full max-w-xl"
             >
-              {winningTeam.members.map((member: any, index: number) => {
+              {(winningTeam.members || []).filter((member: any) => member.isActive !== false).map((member: any, index: number) => {
                 const memberScore = winningTeam.scores.find((s: any) => s.userId === member.id);
                 const points = memberScore?.totalPoints || 0;
 

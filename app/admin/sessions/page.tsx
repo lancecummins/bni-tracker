@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { sessionService, scoreService } from '@/lib/firebase/services';
-import { Session, Score, Season } from '@/lib/types';
-import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff, Monitor, Edit2, PlayCircle, X, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react';
+import { Session, Score, Season, Team } from '@/lib/types';
+import { Calendar, Clock, CheckCircle, XCircle, BarChart2, Users, Archive, ArrowUpDown, Filter, Eye, EyeOff, Monitor, Edit2, PlayCircle, X, ChevronDown, ChevronRight, TrendingUp, Trophy } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useActiveSession, useActiveSeason, useSeasons } from '@/lib/firebase/hooks';
+import { useStaticTeams } from '@/lib/firebase/hooks/useStaticData';
 
 type SortBy = 'date' | 'week' | 'status' | 'points';
 type SortOrder = 'asc' | 'desc';
@@ -15,6 +16,7 @@ export default function SessionsPage() {
   const { session: activeSession } = useActiveSession();
   const { season: activeSeason } = useActiveSeason();
   const { seasons } = useSeasons();
+  const { teams } = useStaticTeams();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionScores, setSessionScores] = useState<Record<string, Score[]>>({});
   const [loading, setLoading] = useState(true);
@@ -227,6 +229,34 @@ export default function SessionsPage() {
     return scores
       .sort((a, b) => b.totalPoints - a.totalPoints)
       .slice(0, 3);
+  };
+
+  /** Winning team for a session: sum of score totalPoints by teamId + session teamCustomBonuses, then max. */
+  const getWinningTeamForSession = (session: Session): Team | null => {
+    const scores = sessionScores[session.id!] || [];
+    if (scores.length === 0) return null;
+
+    const teamPoints = new Map<string, number>();
+    for (const score of scores) {
+      const tid = score.teamId;
+      if (!tid) continue;
+      teamPoints.set(tid, (teamPoints.get(tid) || 0) + (score.totalPoints || 0));
+    }
+    const customBonuses = session.teamCustomBonuses || [];
+    for (const b of customBonuses) {
+      teamPoints.set(b.teamId, (teamPoints.get(b.teamId) || 0) + b.points);
+    }
+
+    let maxPoints = 0;
+    let winningTeamId: string | null = null;
+    teamPoints.forEach((pts, teamId) => {
+      if (pts > maxPoints) {
+        maxPoints = pts;
+        winningTeamId = teamId;
+      }
+    });
+    if (!winningTeamId) return null;
+    return teams.find((t) => t.id === winningTeamId) || null;
   };
 
   // Filter and sort sessions
@@ -506,6 +536,7 @@ export default function SessionsPage() {
             const stats = getSessionStats(session.id!);
             const isExpanded = expandedSession === session.id;
             const topPerformers = getTopPerformers(session.id!);
+            const winningTeam = getWinningTeamForSession(session);
 
             return (
               <div key={session.id} className="bg-white rounded-lg shadow overflow-hidden">
@@ -604,6 +635,19 @@ export default function SessionsPage() {
                         <div className="text-center">
                           <p className="text-gray-500">Attendance</p>
                           <p className="text-xl font-semibold">{stats.attendance}</p>
+                        </div>
+                        <div className="text-center min-w-[100px]">
+                          <p className="text-gray-500 flex items-center justify-center gap-1">
+                            <Trophy size={14} className="text-yellow-500" />
+                            Winner
+                          </p>
+                          <p
+                            className="text-lg font-semibold truncate max-w-[120px] mx-auto"
+                            title={winningTeam?.name}
+                            style={{ color: winningTeam?.color || undefined }}
+                          >
+                            {winningTeam?.name ?? '—'}
+                          </p>
                         </div>
                       </div>
 

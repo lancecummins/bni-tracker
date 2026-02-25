@@ -538,7 +538,7 @@ export default function RefereePage() {
 
       return {
         team,
-        members: users.filter(u => u.teamId === team.id),
+        members: users.filter(u => u.teamId === team.id && u.isActive !== false),
         scores: teamScores,
         weeklyPoints,
         bonusPoints,
