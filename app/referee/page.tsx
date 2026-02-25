@@ -66,6 +66,8 @@ export default function RefereePage() {
   const [selectedLanceBonus, setSelectedLanceBonus] = useState<any | null>(null);
   const [customTeamBonusPoints, setCustomTeamBonusPoints] = useState<number>(0);
   const [customTeamBonusName, setCustomTeamBonusName] = useState<string>('Custom Bonus');
+  const [customIndividualBonusPoints, setCustomIndividualBonusPoints] = useState<number>(0);
+  const [customIndividualBonusName, setCustomIndividualBonusName] = useState<string>('Custom Bonus');
   const [lanceAllocations, setLanceAllocations] = useState<any[]>([]);
   const [filterMode, setFilterMode] = useState<'all' | 'shown' | 'not-shown' | 'no-score'>('all');
   const [sortMode, setSortMode] = useState<'team' | 'name' | 'points' | 'random'>('random');
@@ -682,8 +684,8 @@ export default function RefereePage() {
       toast.error('Please select a session and target');
       return;
     }
-    if (awardBonusTarget.type === 'individual' && !selectedBonus && !selectedLanceBonus) {
-      toast.error('Please select a bonus');
+    if (awardBonusTarget.type === 'individual' && !selectedBonus && !selectedLanceBonus && (!customIndividualBonusPoints || customIndividualBonusPoints <= 0)) {
+      toast.error('Please select a bonus or enter custom points');
       return;
     }
     if (awardBonusTarget.type === 'team' && !selectedBonus && (!customTeamBonusPoints || customTeamBonusPoints <= 0)) {
@@ -693,28 +695,52 @@ export default function RefereePage() {
 
     try {
       if (awardBonusTarget.type === 'individual') {
-        if (!selectedBonus) {
-          toast.error('Please select a bonus');
+        const useCustomPoints = customIndividualBonusPoints > 0;
+        if (!useCustomPoints && !selectedBonus && !selectedLanceBonus) {
+          toast.error('Please select a bonus or enter custom points');
           return;
         }
-        const awardedBonus: AwardedCustomBonus = {
-          bonusId: selectedBonus.id!,
-          bonusName: selectedBonus.name,
-          points: selectedBonus.points,
-          awardedBy: 'referee',
-          awardedAt: Timestamp.now(),
-        };
-        let userScore = scores.find(s => s.userId === awardBonusTarget.user.id);
 
-        // Check if this bonus has already been awarded to this user
-        const alreadyAwarded = userScore?.customBonuses?.some(b => b.bonusId === selectedBonus.id);
-        if (alreadyAwarded) {
-          toast.error(`${selectedBonus.name} has already been awarded to ${awardBonusTarget.user.firstName}`);
-          setShowAwardBonusModal(false);
-          setAwardBonusTarget(null);
-          setSelectedBonus(null);
+        // Build awarded bonus: from predefined bonus or custom points (Lance is handled in button onClick)
+        let awardedBonus: AwardedCustomBonus;
+        let pointsToAdd: number;
+        let bonusDisplayName: string;
+
+        if (useCustomPoints) {
+          pointsToAdd = customIndividualBonusPoints;
+          bonusDisplayName = customIndividualBonusName.trim() || 'Custom Bonus';
+          awardedBonus = {
+            bonusId: `custom-${Date.now()}`,
+            bonusName: bonusDisplayName,
+            points: pointsToAdd,
+            awardedBy: 'referee',
+            awardedAt: Timestamp.now(),
+          };
+        } else if (selectedBonus) {
+          pointsToAdd = selectedBonus.points;
+          bonusDisplayName = selectedBonus.name;
+          awardedBonus = {
+            bonusId: selectedBonus.id!,
+            bonusName: selectedBonus.name,
+            points: selectedBonus.points,
+            awardedBy: 'referee',
+            awardedAt: Timestamp.now(),
+          };
+          let userScoreCheck = scores.find(s => s.userId === awardBonusTarget.user.id);
+          const alreadyAwarded = userScoreCheck?.customBonuses?.some(b => b.bonusId === selectedBonus.id);
+          if (alreadyAwarded) {
+            toast.error(`${selectedBonus.name} has already been awarded to ${awardBonusTarget.user.firstName}`);
+            setShowAwardBonusModal(false);
+            setAwardBonusTarget(null);
+            setSelectedBonus(null);
+            return;
+          }
+        } else {
+          toast.error('Please select a bonus or enter custom points');
           return;
         }
+
+        let userScore = scores.find(s => s.userId === awardBonusTarget.user.id);
 
         if (!selectedSessionId) {
           toast.error('No session selected');
@@ -736,7 +762,7 @@ export default function RefereePage() {
               visitors: 0,
               ceu: 0
             },
-            totalPoints: selectedBonus.points,
+            totalPoints: pointsToAdd,
             isDraft: false,
             publishedBy: 'referee',
             publishedAt: Timestamp.now(),
@@ -748,8 +774,7 @@ export default function RefereePage() {
           const docRef = await addDoc(collection(db, 'scores'), newScore);
           userScore = { ...newScore, id: docRef.id };
         } else {
-          // Update existing score
-          // Preserve historical metrics total by subtracting old bonuses from existing totalPoints
+          // Update existing score - add bonus and recalc total (permanent save)
           const oldCustomBonusTotal = (userScore.customBonuses || []).reduce((sum, b) => sum + b.points, 0);
           const metricsTotal = userScore.totalPoints - oldCustomBonusTotal;
 
@@ -773,14 +798,14 @@ export default function RefereePage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'DISPLAY_CUSTOM_BONUS',
-            bonusName: selectedBonus.name,
-            bonusPoints: selectedBonus.points,
+            bonusName: bonusDisplayName,
+            bonusPoints: pointsToAdd,
             targetName: `${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`,
             isTeamBonus: false,
           })
         });
 
-        toast.success(`Awarded ${selectedBonus.name} (+${selectedBonus.points} pts) to ${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`);
+        toast.success(`Awarded ${bonusDisplayName} (+${pointsToAdd} pts) to ${awardBonusTarget.user.firstName} ${awardBonusTarget.user.lastName}`);
       } else {
         // Team award: either predefined bonus or custom points
         const useCustomPoints = customTeamBonusPoints > 0;
@@ -828,6 +853,8 @@ export default function RefereePage() {
       setSelectedBonus(null);
       setCustomTeamBonusPoints(0);
       setCustomTeamBonusName('Custom Bonus');
+      setCustomIndividualBonusPoints(0);
+      setCustomIndividualBonusName('Custom Bonus');
     } catch (error) {
       console.error('Error awarding bonus:', error);
       toast.error('Failed to award bonus');
@@ -1252,6 +1279,8 @@ export default function RefereePage() {
               <button
                 onClick={() => {
                   setAwardBonusTarget(prev => prev ? { ...prev, type: 'individual' } : null);
+                  setCustomTeamBonusPoints(0);
+                  setCustomTeamBonusName('Custom Bonus');
                 }}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   awardBonusTarget?.type === 'individual'
@@ -1264,6 +1293,8 @@ export default function RefereePage() {
               <button
                 onClick={() => {
                   setAwardBonusTarget(prev => prev ? { ...prev, type: 'team' } : null);
+                  setCustomIndividualBonusPoints(0);
+                  setCustomIndividualBonusName('Custom Bonus');
                 }}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   awardBonusTarget?.type === 'team'
@@ -1312,6 +1343,7 @@ export default function RefereePage() {
                           onClick={() => {
                             setSelectedBonus(null);
                             setSelectedLanceBonus(allocation);
+                            setCustomIndividualBonusPoints(0);
                           }}
                           className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                             selectedLanceBonus?.userId === allocation.userId
@@ -1342,6 +1374,7 @@ export default function RefereePage() {
                       setSelectedBonus(bonus);
                       setSelectedLanceBonus(null);
                       if (awardBonusTarget?.type === 'team') setCustomTeamBonusPoints(0);
+                      if (awardBonusTarget?.type === 'individual') setCustomIndividualBonusPoints(0);
                     }}
                     className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                       selectedBonus?.id === bonus.id
@@ -1401,6 +1434,47 @@ export default function RefereePage() {
                   <p className="text-xs text-gray-500 mt-1">Saved the same way as bonuses from Settings. Use Display Bonus to show on screen.</p>
                 </div>
               )}
+
+              {/* Custom points for individual - saved to user score permanently (same as predefined bonuses) */}
+              {awardBonusTarget?.type === 'individual' && (
+                <div className="mb-4 pt-3 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Or enter custom points for this person
+                  </label>
+                  <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">Points</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={customIndividualBonusPoints || ''}
+                        onChange={(e) => {
+                          const v = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                          const num = isNaN(v) ? 0 : v;
+                          setCustomIndividualBonusPoints(num);
+                          if (num > 0) {
+                            setSelectedBonus(null);
+                            setSelectedLanceBonus(null);
+                          }
+                        }}
+                        placeholder="e.g. 25"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">Label (optional)</label>
+                      <input
+                        type="text"
+                        value={customIndividualBonusName}
+                        onChange={(e) => setCustomIndividualBonusName(e.target.value)}
+                        placeholder="Custom Bonus"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Saved permanently to this user&apos;s score (same as bonuses from Settings).</p>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2">
@@ -1412,6 +1486,8 @@ export default function RefereePage() {
                   setSelectedLanceBonus(null);
                   setCustomTeamBonusPoints(0);
                   setCustomTeamBonusName('Custom Bonus');
+                  setCustomIndividualBonusPoints(0);
+                  setCustomIndividualBonusName('Custom Bonus');
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
               >
@@ -1536,6 +1612,8 @@ export default function RefereePage() {
                 disabled={
                   awardBonusTarget?.type === 'team'
                     ? !selectedBonus && (!customTeamBonusPoints || customTeamBonusPoints <= 0)
+                    : awardBonusTarget?.type === 'individual'
+                    ? !selectedBonus && !selectedLanceBonus && (!customIndividualBonusPoints || customIndividualBonusPoints <= 0)
                     : !selectedBonus && !selectedLanceBonus
                 }
                 className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
