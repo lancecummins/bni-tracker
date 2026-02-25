@@ -2,8 +2,9 @@
 
 import { Copy, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+
+// Avoid prerender at build time so Firebase is only used when env vars are available (e.g. on Vercel)
+export const dynamic = 'force-dynamic';
 
 export default function TeamLinksPage() {
   const [teams, setTeams] = useState<any[]>([]);
@@ -13,6 +14,8 @@ export default function TeamLinksPage() {
   useEffect(() => {
     const loadTeams = async () => {
       try {
+        const { collection, getDocs } = await import('firebase/firestore');
+        const { db } = await import('@/lib/firebase/config');
         const teamsSnapshot = await getDocs(collection(db, 'teams'));
         const teamsData = teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setTeams(teamsData);
