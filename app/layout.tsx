@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   description: "Track team scores and leaderboards for BNI competitions",
 };
 
+// Prevent static prerender so Firebase (env vars) is only used at runtime (fixes Vercel build auth/invalid-api-key)
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
