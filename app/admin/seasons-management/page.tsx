@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useSeasons, useActiveSeason } from '@/lib/firebase/hooks';
 import { seasonService } from '@/lib/firebase/services/seasonService';
 import { Season, PointValues, BonusValues } from '@/lib/types';
@@ -125,13 +126,6 @@ export default function SeasonsManagementPage() {
     } finally {
       setCreating(false);
     }
-  };
-
-  const handleViewSeason = (seasonId: string) => {
-    // TODO: Implement season viewing/switching
-    toast('Season viewing will be implemented in the next phase', {
-      icon: 'ℹ️',
-    });
   };
 
   const handleReactivateSeason = async (seasonId: string) => {
@@ -286,13 +280,13 @@ export default function SeasonsManagementPage() {
                 </div>
 
                 <div className="flex flex-col gap-2 ml-6">
-                  <button
-                    onClick={() => handleViewSeason(season.id!)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  <Link
+                    href={`/admin/seasons-management/${season.id}`}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                   >
                     <Eye size={16} />
                     View Details
-                  </button>
+                  </Link>
 
                   {!season.isActive && (
                     <>

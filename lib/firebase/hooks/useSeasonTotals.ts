@@ -5,8 +5,9 @@ import { useSeasonSessions } from './useSessions';
 import { useUsers } from './useUsers';
 import { useSettings } from './useSettings';
 
-interface UserSeasonTotal {
+export interface UserSeasonTotal {
   userId: string;
+  teamId?: string;
   totalPoints: number;
   weekCount: number;
   averagePoints: number;
@@ -21,6 +22,11 @@ interface UserSeasonTotal {
   };
 }
 
+export interface UseSeasonTotalsOptions {
+  /** When false, only published scores count (excludes team-leader drafts). Default true. */
+  includeDraftScores?: boolean;
+}
+
 interface TeamSeasonTotal {
   teamId: string;
   totalPoints: number;
@@ -30,7 +36,8 @@ interface TeamSeasonTotal {
   weeklyWins: number;
 }
 
-export function useSeasonTotals(seasonId: string | null) {
+export function useSeasonTotals(seasonId: string | null, options?: UseSeasonTotalsOptions) {
+  const includeDraftScores = options?.includeDraftScores ?? true;
   const [allScores, setAllScores] = useState<Map<string, Score[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const { sessions } = useSeasonSessions(seasonId);
@@ -52,7 +59,10 @@ export function useSeasonTotals(seasonId: string | null) {
         for (const session of sessions) {
           if (session.id && session.status !== 'draft' && !session.isArchived) {
             const scores = await scoreService.getBySession(session.id);
-            scoresMap.set(session.id, scores);
+            const filtered = includeDraftScores
+              ? scores
+              : scores.filter((s) => !s.isDraft);
+            scoresMap.set(session.id, filtered);
           }
         }
 
@@ -65,13 +75,25 @@ export function useSeasonTotals(seasonId: string | null) {
     };
 
     loadAllScores();
-  }, [seasonId, sessions]);
+  }, [seasonId, sessions, includeDraftScores]);
 
   const userTotals = useMemo(() => {
     const totalsMap = new Map<string, UserSeasonTotal>();
+    const userTeamByLatestWeek = new Map<string, { teamId?: string; week: number }>();
 
-    allScores.forEach((sessionScores) => {
+    allScores.forEach((sessionScores, sessionId) => {
+      const session = sessions.find((s) => s.id === sessionId);
+      const weekNumber = session?.weekNumber ?? 0;
+
       sessionScores.forEach((score) => {
+        const prevTeam = userTeamByLatestWeek.get(score.userId);
+        if (!prevTeam || weekNumber >= prevTeam.week) {
+          userTeamByLatestWeek.set(score.userId, {
+            teamId: score.teamId,
+            week: weekNumber,
+          });
+        }
+
         let userTotal = totalsMap.get(score.userId);
 
         if (!userTotal) {
@@ -108,6 +130,13 @@ export function useSeasonTotals(seasonId: string | null) {
       });
     });
 
+    totalsMap.forEach((userTotal, userId) => {
+      const t = userTeamByLatestWeek.get(userId);
+      if (t?.teamId) {
+        userTotal.teamId = t.teamId;
+      }
+    });
+
     // Calculate averages
     totalsMap.forEach((userTotal) => {
       userTotal.averagePoints = userTotal.weekCount > 0
@@ -117,7 +146,7 @@ export function useSeasonTotals(seasonId: string | null) {
 
     return Array.from(totalsMap.values())
       .sort((a, b) => b.totalPoints - a.totalPoints);
-  }, [allScores]);
+  }, [allScores, sessions]);
 
   const teamTotals = useMemo(() => {
     if (!settings || !users) return [];

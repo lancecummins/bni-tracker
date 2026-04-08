@@ -4,7 +4,7 @@ export { useActiveSession, useSeasonSessions, useAllSessions } from './useSessio
 export { useSessionScores, useUserScores } from './useScores';
 export { useLeaderboard, useTeamStandings } from './useLeaderboard';
 export { useWeekComparison } from './useWeekComparison';
-export { useSeasonTotals } from './useSeasonTotals';
+export { useSeasonTotals, type UserSeasonTotal, type UseSeasonTotalsOptions } from './useSeasonTotals';
 export { useSettings } from './useSettings';
 export { useSeasons, useActiveSeason } from './useSeasons';
 export { useDraft, useDraftBySeasonId } from './useDraft';
